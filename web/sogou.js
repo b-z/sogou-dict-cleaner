@@ -12,6 +12,20 @@
   const PINYIN = ("a ai an ang ao ba bai ban bang bao bei ben beng bi bian biao bie bin bing bo bu ca cai can cang cao ce cen ceng cha chai chan chang chao che chen cheng chi chong chou chu chua chuai chuan chuang chui chun chuo ci cong cou cu cuan cui cun cuo da dai dan dang dao de dei den deng di dia dian diao die ding diu dong dou du duan dui dun duo e ei en eng er fa fan fang fei fen feng fiao fo fou fu ga gai gan gang gao ge gei gen geng gong gou gu gua guai guan guang gui gun guo ha hai han hang hao he hei hen heng hong hou hu hua huai huan huang hui hun huo ji jia jian jiang jiao jie jin jing jiong jiu ju juan jue jun ka kai kan kang kao ke kei ken keng kong kou ku kua kuai kuan kuang kui kun kuo la lai lan lang lao le lei leng li lia lian liang liao lie lin ling liu lo long lou lu luan lve lun luo lv ma mai man mang mao me mei men meng mi mian miao mie min ming miu mo mou mu na nai nan nang nao ne nei nen neng ni nian niang niao nie nin ning niu nong nou nu nuan nve nun nuo nv o ou pa pai pan pang pao pei pen peng pi pian piao pie pin ping po pou pu qi qia qian qiang qiao qie qin qing qiong qiu qu quan que qun ran rang rao re ren reng ri rong rou ru rua ruan rui run ruo sa sai san sang sao se sen seng sha shai shan shang shao she shei shen sheng shi shou shu shua shuai shuan shuang shui shun shuo si song sou su suan sui sun suo ta tai tan tang tao te tei teng ti tian tiao tie ting tong tou tu tuan tui tun tuo wa wai wan wang wei wen weng wo wu xi xia xian xiang xiao xie xin xing xiong xiu xu xuan xue xun ya yan yang yao ye yi yin ying yo yong you yu yuan yue yun za zai zan zang zao ze zei zen zeng zha zhai zhan zhang zhao zhe zhei zhen zheng zhi zhong zhou zhu zhua zhuai zhuan zhuang zhui zhun zhuo zi zong zou zu zuan zui zun zuo"
   ).split(" ").concat("abcdefghijklmnopqrstuvwxyz0123456789#".split(""));
 
+  // 词条尾部记录的「实际输入」拼音里，还会出现不完整的拼音（简拼）：所有音节前缀中本身不是音节的那些
+  // （b、be、bia、c、ch、cho……）加上 i、u、v，按字母排序后从 842 开始编号；另外 478–487 是数字 0–9。
+  const PARTIAL = (() => {
+    const syl = new Set(PINYIN.slice(0, 413)), p = new Set(["i", "u", "v"]);
+    for (const s of syl) for (let k = 1; k < s.length; k++) if (!syl.has(s.slice(0, k))) p.add(s.slice(0, k));
+    return [...p].sort();
+  })();
+  function codeText(c) {
+    if (c < PINYIN.length) return PINYIN[c];
+    if (c >= 842 && c < 842 + PARTIAL.length) return PARTIAL[c - 842];
+    if (c >= 478 && c <= 487) return String(c - 478);
+    return "?";
+  }
+
   // ---------- 标签 ----------
   const TAG = {
     GARBLED: 1 << 0,     // 含非汉字非 ASCII 字符，或文字无法解码
@@ -76,9 +90,19 @@
       const ext = u16(dv, p + 11 + n), wlen = u16(dv, p + 13 + n);
       let word = null;
       try { word = utf16.decode(u8.subarray(p + 15 + n, p + 15 + n + wlen)); } catch (e) { word = null; }
+      // 尾部通常是拼音的副本；不同时记录的是实际怎么打出来的（例如用了简拼）
+      let typed = null;
+      const tail = p + 15 + n + wlen, tailEnd = p + 13 + n + ext;
+      if (tailEnd - tail === 2 + n && u16(dv, tail) === n) {
+        const tc = [];
+        for (let k = 0; k < n >> 1; k++) tc.push(u16(dv, tail + 2 + 2 * k));
+        if (tc.some((c, k) => c !== codes[k])) typed = tc.map(codeText).join(" ");
+      }
+      const pinyin = codes.map(c => (c < PINYIN.length ? PINYIN[c] : "?" + c)).join(" ");
+      if (typed === pinyin) typed = null;   // 编码不同但写出来一样（如英文字母的两套编码）
       recs[i] = {
         offset: off, raw: u8.subarray(p, p + 13 + n + ext), rank: u16(dv, p), time: u32(dv, p + 2),
-        codes, word, pinyin: codes.map(c => (c < PINYIN.length ? PINYIN[c] : "?" + c)).join(" "),
+        codes, word, typed, pinyin,
       };
     }
     return recs;

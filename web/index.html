@@ -118,7 +118,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; 
 
 .cols, .row {
   display: grid;
-  grid-template-columns: 26px minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 104px;
+  grid-template-columns: var(--cols);
 }
 .cols { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; user-select: none; }
 .cols > div { padding: 4px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; }
@@ -139,6 +139,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; 
 .row > div { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .w { font-size: 14px; }
 .row .w mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+.row .py .typed { color: var(--t-amber); }
 .row .py { color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
 .row .num { font-variant-numeric: tabular-nums; color: var(--muted); }
 .cols > div.ck, .row > div.ck { padding: 0 0 0 8px; display: flex; align-items: center; cursor: pointer; }
@@ -318,11 +319,13 @@ const TAGS = [
   { bit: S.TAG.REDUP, name: "叠词", color: "--t-gray", tip: "ABAB 型叠词，如「闭包闭包」「看一下看一下」；也包括同一个字连续 4 次以上，如「啊啊啊啊」",
     note: "叠词：筛选 ABAB 型（闭包闭包、看一下看一下）及同一个字连续 4 次以上的词，「哈哈」这类两字叠词不算" },
 ];
+// width：列宽；only0：只在「现有词库」显示
 const COLS = [
-  { key: "word", label: "词" }, { key: "py", label: "拼音" },
-  { key: "rank", label: "词频", num: true }, { key: "len", label: "字数", num: true },
-  { key: "time", label: "时序", num: true, tip: "词条里记录的相对时间（伪时间），数值越大越近，无法换算成具体日期" },
-  { key: "tags", label: "标签" }, { key: null, label: "" },
+  { key: "word", label: "词", width: "minmax(80px, 2fr)" },
+  { key: "py", label: "拼音", width: "minmax(70px, 1.7fr)", tip: "括号里是实际输入的拼音（和词条拼音不同时才显示，例如用了简拼）" },
+  { key: "rank", label: "词频", num: true, width: "52px" },
+  { key: "time", label: "时序", num: true, width: "48px", only0: true, tip: "词条里记录的相对时间（伪时间），数值越大越近，无法换算成具体日期" },
+  { key: "tags", label: "标签", width: "minmax(64px, 1.4fr)" }, { key: null, label: "", width: "104px" },
 ];
 // 每栏的两个移动按钮：[目标栏, 文字, 是否危险操作]
 const ROW_ACTS = [[[1, "备选 →"]], [[0, "← 保留"], [2, "移除 ↓", 1]], [[0, "← 保留"], [1, "↑ 备选"]]];
@@ -377,7 +380,7 @@ async function loadBuffer(name, buf) {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   file = { name, bytes, recs, fp: `sdc:${name}:${bytes.length}:${dv.getUint32(0x20, true)}:${recs.length}` };
   rows = recs.map((r, i) => ({
-    w: r.word === null ? "〈无法解码〉" : r.word, py: r.pinyin, rank: r.rank, time: r.time,
+    w: r.word === null ? "〈无法解码〉" : r.word, py: r.pinyin, typed: r.typed, rank: r.rank, time: r.time,
     tags: info[i].tags, bad: info[i].bad, len: r.word === null ? 0 : Array.from(r.word).length,
   }));
   N = rows.length; loc = new Uint8Array(N);
@@ -533,8 +536,10 @@ class Pane {
   }
   buildCols() {
     const cols = $(".cols", this.el);
+    this.cols = COLS.filter(c => !c.only0 || this.idx === 0);
+    this.el.style.setProperty("--cols", "26px " + this.cols.map(c => c.width).join(" "));
     cols.innerHTML = `<div class="ck" title="全选 / 全不选当前显示的词"><input type="checkbox" data-all></div>`
-      + COLS.map(c => `<div data-key="${c.key || ""}" class="${c.num ? "num" : ""} ${c.key ? "" : "nosort"}" ${c.tip ? `title="${c.tip}"` : ""}>${c.label}</div>`).join("");
+      + this.cols.map(c => `<div data-key="${c.key || ""}" class="${c.num ? "num" : ""} ${c.key ? "" : "nosort"}" ${c.tip ? `title="${c.tip}"` : ""}>${c.label}</div>`).join("");
     this.allBox = $("[data-all]", cols);
     cols.addEventListener("click", e => {
       if (e.target.closest(".ck")) {
@@ -558,7 +563,7 @@ class Pane {
     this.view = v;
     for (const id of this.sel) if (loc[id] !== this.idx) this.sel.delete(id);
     $(".cols", this.el).querySelectorAll("[data-key]").forEach(c => {
-      const col = COLS.find(x => (x.key || "") === c.dataset.key), on = col.key && col.key === this.sort.key;
+      const col = this.cols.find(x => (x.key || "") === c.dataset.key), on = col.key && col.key === this.sort.key;
       c.classList.toggle("sorted", !!on);
       c.textContent = col.label + (on ? (this.sort.dir === 1 ? " ↑" : " ↓") : "");
     });
@@ -587,11 +592,7 @@ class Pane {
       const cls = "row" + (this.sel.has(id) ? " sel" : "") + (id === this.cursor ? " cur" : "");
       html += `<div class="${cls}" data-id="${id}" style="top:${k * ROW_H}px">`
         + `<div class="ck"><input type="checkbox" tabindex="-1"${this.sel.has(id) ? " checked" : ""}></div>`
-        + `<div class="w" title="${esc(r.w)}">${wordHtml(r)}</div>`
-        + `<div class="py" title="${esc(r.py)}">${esc(r.py)}</div>`
-        + `<div class="num">${r.rank}</div><div class="num">${r.len}</div><div class="num">${r.time}</div>`
-        + `<div class="tags" title="${TAGS.filter(g => r.tags & g.bit).map(g => g.name).join("、")}">${tagsHtml(r.tags)}</div>`
-        + `<div class="acts">${acts}</div></div>`;
+        + this.cols.map(c => cellHtml(c.key, r, acts)).join("") + `</div>`;
     }
     this.body.querySelectorAll(".row").forEach(n => n.remove());
     this.body.insertAdjacentHTML("beforeend", html);
@@ -686,6 +687,19 @@ class Pane {
     this.anchor = this.cursor = next !== undefined ? next : -1;
     move(ids, to, `${fmt(ids.length)} 条${["已保留", "移到备选", "确认移除"][to]}`);
     this.el.focus({ preventScroll: true });
+  }
+}
+
+function cellHtml(key, r, acts) {
+  switch (key) {
+    case "word": return `<div class="w" title="${esc(r.w)}">${wordHtml(r)}</div>`;
+    case "py": return r.typed
+      ? `<div class="py" title="${esc(r.py)}（实际输入：${esc(r.typed)}）">${esc(r.py)} <span class="typed">(${esc(r.typed)})</span></div>`
+      : `<div class="py" title="${esc(r.py)}">${esc(r.py)}</div>`;
+    case "rank": return `<div class="num">${r.rank}</div>`;
+    case "time": return `<div class="num">${r.time}</div>`;
+    case "tags": return `<div class="tags" title="${TAGS.filter(g => r.tags & g.bit).map(g => g.name).join("、")}">${tagsHtml(r.tags)}</div>`;
+    default: return `<div class="acts">${acts}</div>`;
   }
 }
 
