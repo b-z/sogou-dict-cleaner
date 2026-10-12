@@ -147,6 +147,15 @@ npx wrangler@4 pages deploy web --project-name sogou-clean --branch main
 
 时序在搜狗内部称为伪时间（pseudo time），导入时由 `t_dictPseudoRelation::GetRealTimeByPseudo` 借助用户目录里的 `sgim_gd_pseudorelation.bin` 换算成真实时间。
 
+## 支持这个项目
+
+这个工具是我业余时间做的：从逆向搜狗的词库格式、排查恢复失败的原因，到做成现在的网页，花了不少功夫。如果它帮你清掉了一堆没用的词，欢迎请我喝杯咖啡，你的支持是我继续维护它的最大动力。赞助完全自愿，所有功能都不受影响。
+
+- **GitHub Sponsors**：[github.com/sponsors/b-z](https://github.com/sponsors/b-z)（可以用信用卡或 PayPal）
+- **微信赞赏**：扫下面的二维码
+
+<img src="docs/wechat-reward.jpg" alt="微信赞赏码" width="200">
+
 ## 开发
 
 ```
@@ -156,6 +165,7 @@ web/            网站（静态文件，无需构建）
   sogou.js      解析、分析、重建（浏览器和 node 通用）
   data.js       常用词表与繁体字表（tools/build_data.py 生成）
   sample.js     示例词库（tools/make_sample.py 生成）
+  payment.js    微信赞赏码（内嵌图片与 SHA-256 校验值，校验不通过不显示）
 sogou_dict.py   命令行版
 tests/sample.bin  合成的示例词库，覆盖每一种标签，人名均为虚构
 tools/          生成数据、生成示例、对拍测试的脚本

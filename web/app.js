@@ -474,15 +474,54 @@ function download(name, data, type) {
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+// 微信赞赏码：按需加载 payment.js，校验 SHA-256 后才显示（防止被替换成别人的收款码）
+let paymentPromise = null;
+function loadPaymentQr() {
+  if (!paymentPromise) paymentPromise = new Promise(resolve => {
+    const s = document.createElement("script");
+    s.src = "payment.js";
+    s.onload = async () => {
+      try {
+        const uri = globalThis.SOGOU_PAYMENT_QR;
+        const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(uri));
+        const hex = Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join("");
+        resolve(hex === globalThis.SOGOU_PAYMENT_QR_SHA256 ? uri : null);
+      } catch { resolve(null); }
+    };
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+  return paymentPromise;
+}
+
+const SPONSOR_URL = "https://github.com/sponsors/b-z";
+function supportHtml() {
+  return `<div class="support">
+    <p class="title">☕ 支持一下作者？</p>
+    <p>这个工具是我业余时间做的：从逆向搜狗的词库格式、排查恢复失败的原因，到做成现在的网页，花了不少功夫。如果它帮你清掉了一堆没用的词，欢迎请我喝杯咖啡，你的支持是我继续维护它的最大动力。</p>
+    <p>赞助完全自愿，不赞助也可以直接在下面导出。</p>
+    <div class="ways">
+      <div class="way">
+        <a class="sponsor" href="${SPONSOR_URL}" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5z"/></svg>
+          GitHub Sponsors</a>
+        <span>用信用卡或 PayPal</span>
+      </div>
+      <div class="way" id="wxWay"><div class="qr-wait">载入中…</div><span>微信扫码赞赏</span></div>
+    </div>
+  </div>`;
+}
+
 function exportDialog() {
   const c = [0, 0, 0]; for (let i = 0; i < N; i++) c[loc[i]]++;
   const base = file.name.replace(/\.bin$/i, "") + "_干净";
   showModal(`<h3>导出干净词库</h3>
     <div class="stats"><span>保留</span><b>${fmt(c[0] + c[1])} 条</b><span>移除（确认移除栏）</span><b>${fmt(c[2])} 条</b></div>
+    ${supportHtml()}
     ${file.name === "示例词库.bin" ? `<p><b>这是示例词库</b>，导出的文件只用于看看效果，请不要拿去在搜狗里恢复。</p>` : ""}
     ${c[1] ? `<p>备选栏里还有 <b>${fmt(c[1])}</b> 条未处理，导出时会<b>保留</b>。</p>` : ""}
     <p><b>.bin</b> 用于在搜狗输入法「偏好设置 › 词库 › 中文用户词库」里「恢复（完全覆盖）」；<b>.txt</b> 是文本版，方便查看。原始备份请留好。</p>
-    <p>在 macOS 上如果搜狗提示恢复失败，多半是它没有权限读取「下载」文件夹：可以在「系统设置 › 隐私与安全性 › 文件和文件夹」里允许搜狗输入法访问，或把文件移到主目录下的其他文件夹再恢复。</p>
+    <p>macOS 上如果搜狗提示恢复失败，多半是它没有权限读取「下载」文件夹：在「系统设置 › 隐私与安全性 › 文件和文件夹」里允许搜狗输入法访问，或把文件移到主目录下的其他文件夹再恢复。</p>
     <div class="actions"><button class="btn" data-close>关闭</button>
       <button class="btn" id="dlTxt">下载 .txt</button><button class="btn primary" id="dlBin" ${c[2] ? "" : "disabled"}>下载 .bin</button></div>`);
   const keep = () => { const k = []; for (let i = 0; i < N; i++) if (loc[i] !== 2) k.push(i); return k; };
@@ -491,6 +530,11 @@ function exportDialog() {
     catch (e) { alertModal("导出失败", e.message); }
   };
   $("#dlTxt").onclick = () => download(base + ".txt", S.toTSV(file.recs, keep()), "text/plain;charset=utf-8");
+  loadPaymentQr().then(uri => {
+    const way = $("#wxWay"); if (!way) return;
+    if (uri) way.firstElementChild.outerHTML = `<img class="qr" src="${uri}" alt="微信赞赏码">`;
+    else way.remove();   // 校验不通过或加载失败时不显示，只留 GitHub Sponsors
+  });
 }
 
 // ---------- 启动 ----------

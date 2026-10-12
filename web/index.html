@@ -199,7 +199,19 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
 #toast button { background: none; border: none; color: var(--accent); filter: brightness(1.4); cursor: pointer; font-weight: 600; padding: 0; }
 .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: center; justify-content: center; z-index: 60; }
 .modal-back.show { display: flex; }
-.modal { background: var(--panel); border-radius: 12px; padding: 20px 22px; width: min(520px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.modal { background: var(--panel); border-radius: 12px; padding: 20px 22px; width: min(560px, 92vw); max-height: 92vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+/* 导出对话框里的赞助区块 */
+.support { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
+.support .title { font-weight: 650; color: var(--text); margin: 0 0 4px; }
+.support p { margin: 4px 0; font-size: 12.5px; }
+.support .ways { display: flex; align-items: center; justify-content: center; gap: 28px; margin-top: 10px; flex-wrap: wrap; }
+.support .way { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.support .sponsor { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text); font-weight: 600;
+  border: 1px solid var(--line-strong); background: var(--panel); border-radius: 8px; padding: 8px 16px; }
+.support .sponsor:hover { border-color: #db61a2; }
+.support .sponsor svg { width: 16px; height: 16px; fill: #db61a2; }
+.support .qr { width: 132px; height: 132px; border-radius: 8px; background: #fff; padding: 4px; border: 1px solid var(--line); }
+.support .qr-wait { width: 132px; height: 132px; display: flex; align-items: center; justify-content: center; color: var(--faint); }
 .modal h3 { margin: 0 0 10px; font-size: 16px; }
 .modal p { margin: 8px 0; color: var(--muted); line-height: 1.6; }
 .modal .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 12px 0; font-variant-numeric: tabular-nums; }
