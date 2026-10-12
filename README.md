@@ -6,7 +6,9 @@
 
 ## 网页版（推荐）
 
-打开 `web/index.html`（也可以部署成静态网站，见下文），点「打开文件」或把备份文件拖进页面。**文件只在浏览器里处理，不会上传。**
+在线使用：**https://sougou-clean.pages.dev**
+
+也可以直接打开本地的 `web/index.html`。点「打开文件」或把备份文件拖进页面即可。**文件只在浏览器里处理，不会上传。**
 
 1. 在搜狗输入法「偏好设置 › 词库 › 中文用户词库」里点「导出/备份」，得到一个 `.bin` 文件。
 2. 在网页里打开它，挑出要删的词。
@@ -54,7 +56,13 @@
 
 ### 部署成静态网站
 
-`web/` 目录就是完整的网站，不需要构建。以 Cloudflare Pages 为例：连接这个仓库，构建命令留空，输出目录填 `web`。
+`web/` 目录就是完整的网站，不需要构建。在线版部署在 Cloudflare Pages 的 `sougou-clean` 项目上，更新网站：
+
+```bash
+npx wrangler@4 pages deploy web --project-name sougou-clean --branch main
+```
+
+也可以在 Cloudflare 后台把 Pages 项目连接到 GitHub 仓库：构建命令留空，输出目录填 `web`，之后每次推送都会自动部署。
 
 `web/data.js`（常用词表和繁体字表，约 3.7 MB，压缩传输约 1.3 MB）由 `python3 tools/build_data.py` 生成。页面打开后会在后台加载它。
 
