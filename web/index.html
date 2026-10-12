@@ -70,14 +70,11 @@ header .spacer { flex: 1; }
   display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong);
   background: var(--panel); border-radius: 999px; padding: 2px 4px 2px 9px; cursor: pointer; user-select: none;
 }
-.chip:hover:not(.on):not(.off) { background: var(--hover); }
+.chip:hover:not(.on) { background: var(--hover); }
 .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
 .chip .count { background: var(--bg); color: var(--muted); border-radius: 999px; padding: 0 7px; font-size: 12px; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
 .chip.on { background: color-mix(in srgb, var(--c) 14%, var(--panel)); border-color: var(--c); font-weight: 600; }
-.chip.off { border-color: var(--danger); color: var(--danger); }
-.chip.off .name { text-decoration: line-through; }
-.chip.off .dot { background: var(--danger); }
-.chip.zero:not(.on):not(.off) { opacity: .5; }
+.chip.zero:not(.on) { opacity: .5; }
 .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
 .seg button { border: 0; background: var(--panel); padding: 2px 9px; cursor: pointer; }
 .seg button + button { border-left: 1px solid var(--line-strong); }
@@ -89,7 +86,6 @@ header .spacer { flex: 1; }
 .exprbar .expr { font: 12px/1.6 ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); background: var(--panel);
   border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; }
 .exprbar .op { color: var(--accent); font-weight: 700; }
-.exprbar .op.not { color: var(--danger); }
 .exprbar .t { font-weight: 600; }
 .exprbar .none { color: var(--faint); }
 
@@ -122,7 +118,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; 
 
 .cols, .row {
   display: grid;
-  grid-template-columns: minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 104px;
+  grid-template-columns: 26px minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 104px;
 }
 .cols { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; user-select: none; }
 .cols > div { padding: 4px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; }
@@ -145,6 +141,8 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; 
 .row .w mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
 .row .py { color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
 .row .num { font-variant-numeric: tabular-nums; color: var(--muted); }
+.cols > div.ck, .row > div.ck { padding: 0 0 0 8px; display: flex; align-items: center; cursor: pointer; }
+.ck input { margin: 0; cursor: pointer; accent-color: var(--accent); }
 .row .acts { display: flex; gap: 4px; justify-content: flex-end; padding-right: 8px; }
 .row .acts button {
   border: 1px solid transparent; background: none; border-radius: 4px; padding: 0 5px; font-size: 12px; line-height: 18px;
@@ -207,16 +205,16 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
   <button class="btn" id="openBtn">打开文件…</button>
   <span class="file" id="fileName"></span>
   <span class="spacer"></span>
-  <input type="search" id="search" placeholder="搜索词或拼音（/正则/）" autocomplete="off" spellcheck="false" disabled>
-  <span id="saveState"></span>
-  <button class="btn" id="undoBtn" title="撤销 (⌘Z)" disabled>撤销</button>
-  <button class="btn primary" id="exportBtn" disabled>导出干净词库</button>
   <span class="links">
     <a href="https://github.com/b-z/sogou-dict-cleaner" target="_blank" rel="noopener" title="源代码">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
     <a href="https://github.com/sponsors/b-z" target="_blank" rel="noopener" title="赞助作者">
       <svg class="heart" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25zm0 0l.345.666a.752.752 0 01-.69 0L8 14.25z"/></svg>Sponsor</a>
   </span>
+  <input type="search" id="search" placeholder="搜索词或拼音（/正则/）" autocomplete="off" spellcheck="false" disabled>
+  <span id="saveState"></span>
+  <button class="btn" id="undoBtn" title="撤销 (⌘Z)" disabled>撤销</button>
+  <button class="btn primary" id="exportBtn" disabled>导出干净词库</button>
   <input type="file" id="fileInput" accept=".bin" hidden>
 </header>
 
@@ -224,7 +222,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
   <span class="label">筛选</span>
   <span id="chips" style="display:contents"></span>
   <span class="sep"></span>
-  <span class="seg" id="modeSeg" title="多个「包含」标签之间的关系">
+  <span class="seg" id="modeSeg" title="选中多个标签时，它们之间的关系">
     <button data-mode="any" class="on">满足任一</button><button data-mode="all">全部满足</button>
   </span>
   <span class="range">词频 <input type="number" min="0" id="freqMin" placeholder="不限">–<input type="number" min="0" id="freqMax" placeholder="不限"></span>
@@ -314,9 +312,11 @@ const TAGS = [
   { bit: S.TAG.NAME, name: "人名", color: "--t-blue", tip: "姓 + 名的组合，规则粗略，请逐条确认" },
   { bit: S.TAG.LATIN, name: "英文数字", color: "--t-teal", tip: "含英文字母或数字" },
   { bit: S.TAG.MULTI_PY, name: "多拼音", color: "--t-gray", tip: "同一个词以多种拼音出现" },
-  { bit: S.TAG.DUP, name: "重复词", color: "--t-gray", tip: "同一个词出现了多次。词频最高的一条不标记，其余都标记，移除后只留一条" },
+  { bit: S.TAG.DUP, name: "重复词", color: "--t-gray", tip: "同一个词出现了多次。只标记其中词频较低的几条，词频最高的那条不标记",
+    note: "重复词：全部移除后，每个词仍会保留词频最高的一条" },
   { bit: S.TAG.ZERO, name: "零词频", color: "--t-gray", tip: "词频为 0" },
-  { bit: S.TAG.REDUP, name: "叠词", color: "--t-gray", tip: "同一片段重复（如「闭包闭包」「看一下看一下」），或同一个字连续 4 次以上" },
+  { bit: S.TAG.REDUP, name: "叠词", color: "--t-gray", tip: "ABAB 型叠词，如「闭包闭包」「看一下看一下」；也包括同一个字连续 4 次以上，如「啊啊啊啊」",
+    note: "叠词：筛选 ABAB 型（闭包闭包、看一下看一下）及同一个字连续 4 次以上的词，「哈哈」这类两字叠词不算" },
 ];
 const COLS = [
   { key: "word", label: "词" }, { key: "py", label: "拼音" },
@@ -405,9 +405,9 @@ function buildChips() {
   TAGS.forEach((t, k) => {
     const c = document.createElement("span");
     c.className = "chip"; c.style.setProperty("--c", `var(${t.color})`);
-    c.title = t.tip + "\n点击切换：包含 → 排除 → 不限";
+    c.title = t.tip + "\n点击选中，再点一次取消";
     c.innerHTML = `<span class="dot"></span><span class="name">${t.name}</span><span class="count">–</span>`;
-    c.onclick = () => { filter.tags[k] = filter.tags[k] === 0 ? 1 : filter.tags[k] === 1 ? -1 : 0; filterChanged(); };
+    c.onclick = () => { filter.tags[k] = filter.tags[k] ? 0 : 1; filterChanged(); };
     box.appendChild(c);
   });
 }
@@ -425,20 +425,17 @@ function passBase(i) {
   if (filter.search && !filter.search(i)) return false;
   return true;
 }
-let incMask = 0, excMask = 0;
+let incMask = 0;
 function pass(i) {
   if (!passBase(i)) return false;
   const t = rows[i].tags;
-  if (t & excMask) return false;
   if (incMask) return filter.mode === "any" ? (t & incMask) !== 0 : (t & incMask) === incMask;
   return true;
 }
 function filterChanged() {
-  incMask = excMask = 0;
-  TAGS.forEach((t, k) => { if (filter.tags[k] === 1) incMask |= t.bit; else if (filter.tags[k] === -1) excMask |= t.bit; });
-  document.querySelectorAll("#chips .chip").forEach((c, k) => {
-    c.classList.toggle("on", filter.tags[k] === 1); c.classList.toggle("off", filter.tags[k] === -1);
-  });
+  incMask = 0;
+  TAGS.forEach((t, k) => { if (filter.tags[k]) incMask |= t.bit; });
+  document.querySelectorAll("#chips .chip").forEach((c, k) => c.classList.toggle("on", !!filter.tags[k]));
   document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === filter.mode));
   store.set("sdc-filter", { tags: Array.from(filter.tags), mode: filter.mode, freqMin: filter.freqMin, freqMax: filter.freqMax, lenMin: filter.lenMin, lenMax: filter.lenMax });
   if (N) refreshAll();
@@ -460,14 +457,13 @@ function updateFilterCounts() {
 function renderExpr() {
   const tag = k => `<span class="t" style="color:var(${TAGS[k].color})">${TAGS[k].name}</span>`;
   const op = (o, cls = "") => ` <span class="op ${cls}">${o}</span> `;
-  const inc = [], exc = [];
-  TAGS.forEach((_, k) => { if (filter.tags[k] === 1) inc.push(tag(k)); else if (filter.tags[k] === -1) exc.push(tag(k)); });
+  const inc = [];
+  TAGS.forEach((_, k) => { if (filter.tags[k]) inc.push(tag(k)); });
   const parts = [];
   if (inc.length) {
     const joined = inc.join(op(filter.mode === "any" ? "OR" : "AND"));
     parts.push(inc.length > 1 && filter.mode === "any" ? `(${joined})` : joined);
   }
-  for (const t of exc) parts.push(`<span class="op not">NOT</span> ${t}`);
   const range = (name, lo, hi) => {
     if (lo !== null && hi !== null) return lo === hi ? `${name} = ${lo}` : `${lo} ≤ ${name} ≤ ${hi}`;
     if (lo !== null) return `${name} ≥ ${lo}`;
@@ -477,7 +473,8 @@ function renderExpr() {
   for (const r of [range("词频", filter.freqMin, filter.freqMax), range("字数", filter.lenMin, filter.lenMax)]) if (r) parts.push(r);
   $("#expr").innerHTML = parts.length ? parts.join(op("AND")) : `<span class="none">无，显示全部</span>`;
   const q = $("#search").value.trim();
-  $("#exprNote").textContent = "只作用于「现有词库」" + (q ? `；搜索「${q}」作用于三栏` : "");
+  const notes = TAGS.filter((t, k) => filter.tags[k] && t.note).map(t => t.note);
+  $("#exprNote").textContent = ["只作用于「现有词库」", q && `搜索「${q}」作用于三栏`, ...notes].filter(Boolean).join("；");
 }
 function setSearch(q) {
   q = q.trim();
@@ -536,8 +533,16 @@ class Pane {
   }
   buildCols() {
     const cols = $(".cols", this.el);
-    cols.innerHTML = COLS.map(c => `<div data-key="${c.key || ""}" class="${c.num ? "num" : ""} ${c.key ? "" : "nosort"}" ${c.tip ? `title="${c.tip}"` : ""}>${c.label}</div>`).join("");
+    cols.innerHTML = `<div class="ck" title="全选 / 全不选当前显示的词"><input type="checkbox" data-all></div>`
+      + COLS.map(c => `<div data-key="${c.key || ""}" class="${c.num ? "num" : ""} ${c.key ? "" : "nosort"}" ${c.tip ? `title="${c.tip}"` : ""}>${c.label}</div>`).join("");
+    this.allBox = $("[data-all]", cols);
     cols.addEventListener("click", e => {
+      if (e.target.closest(".ck")) {
+        // 不阻止默认行为：勾选状态最后由 updateHead 统一设置
+        if (this.view.length && this.view.every(id => this.sel.has(id))) { this.sel.clear(); this.render(); this.updateHead(); }
+        else this.selectAll();
+        return;
+      }
       const k = e.target.closest("[data-key]")?.dataset.key; if (!k) return;
       if (this.sort.key === k) { if (this.sort.dir === 1) this.sort.dir = -1; else this.sort = { key: null, dir: 1 }; }
       else this.sort = { key: k, dir: (k === "rank" || k === "time") ? -1 : 1 };
@@ -567,6 +572,10 @@ class Pane {
     this.badge.textContent = (shown !== total ? `${fmt(shown)} / ` : "") + fmt(total) + (this.sel.size ? ` · 已选 ${fmt(this.sel.size)}` : "");
     this.el.querySelectorAll("[data-act]").forEach(b => (b.disabled = this.sel.size === 0));
     $("[data-selall]", this.el).disabled = shown === 0;
+    const nSel = this.sel.size;
+    this.allBox.checked = shown > 0 && nSel >= shown && this.view.every(id => this.sel.has(id));
+    this.allBox.indeterminate = nSel > 0 && !this.allBox.checked;
+    this.allBox.disabled = shown === 0;
   }
   render() {
     const top = this.body.scrollTop, h = this.body.clientHeight;
@@ -577,6 +586,7 @@ class Pane {
       const id = this.view[k], r = rows[id];
       const cls = "row" + (this.sel.has(id) ? " sel" : "") + (id === this.cursor ? " cur" : "");
       html += `<div class="${cls}" data-id="${id}" style="top:${k * ROW_H}px">`
+        + `<div class="ck"><input type="checkbox" tabindex="-1"${this.sel.has(id) ? " checked" : ""}></div>`
         + `<div class="w" title="${esc(r.w)}">${wordHtml(r)}</div>`
         + `<div class="py" title="${esc(r.py)}">${esc(r.py)}</div>`
         + `<div class="num">${r.rank}</div><div class="num">${r.len}</div><div class="num">${r.time}</div>`
@@ -606,6 +616,16 @@ class Pane {
     if (e.target.closest("button")) return;
     const row = e.target.closest(".row"); if (!row) return;
     const id = +row.dataset.id, meta = e.metaKey || e.ctrlKey;
+    // 勾选框：单独选中或取消这一行（按住 ⇧ 时把锚点到这一行之间都勾上）
+    if (e.target.closest(".ck")) {
+      e.preventDefault();
+      if (e.shiftKey && this.anchor >= 0) this.selectRange(this.anchor, id, true);
+      else { this.sel.has(id) ? this.sel.delete(id) : this.sel.add(id); this.anchor = id; }
+      this.setCursor(id, false);
+      this.el.focus({ preventScroll: true });
+      this.render(); this.updateHead();
+      return;
+    }
     if (e.shiftKey) this.selectRange(this.anchor >= 0 ? this.anchor : id, id, meta);
     else if (meta) { this.sel.has(id) ? this.sel.delete(id) : this.sel.add(id); this.anchor = id; }
     else if (!(e.detail === 2 && this.sel.has(id))) { this.sel = new Set([id]); this.anchor = id; }
@@ -615,13 +635,14 @@ class Pane {
   }
   // 行内按钮：点在已选中的行上时作用于整个选区，否则只作用于这一行
   onClick(e) {
+    if (e.target.closest(".ck")) { e.preventDefault(); return; }   // 勾选状态由 mousedown 处理
     const btn = e.target.closest("button[data-to]"); if (!btn) return;
     const id = +btn.closest(".row").dataset.id, to = +btn.dataset.to;
     if (this.sel.has(id) && this.sel.size > 1) this.moveSelection(to);
     else { this.sel = new Set([id]); this.moveSelection(to); }
   }
   onDblClick(e) {
-    if (e.target.closest("button")) return;
+    if (e.target.closest("button, .ck")) return;
     const row = e.target.closest(".row"); if (!row) return;
     this.sel = new Set([+row.dataset.id]);
     this.moveSelection(this.idx === 0 ? 1 : this.idx === 1 ? 2 : 1);
@@ -765,7 +786,7 @@ function init() {
   buildChips();
   const saved = store.get("sdc-filter");
   if (saved) {
-    (saved.tags || []).forEach((v, k) => { if (k < TAGS.length) filter.tags[k] = v; });
+    (saved.tags || []).forEach((v, k) => { if (k < TAGS.length) filter.tags[k] = v === 1 ? 1 : 0; });
     if (saved.mode === "all") filter.mode = "all";
     for (const k of ["freqMin", "freqMax", "lenMin", "lenMax"]) {
       filter[k] = Number.isFinite(saved[k]) ? saved[k] : null;
