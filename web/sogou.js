@@ -24,11 +24,15 @@
     MULTI_PY: 1 << 7,    // 同一个词有多种拼音
     UNCOMMON: 1 << 8,    // 多字汉字词，词典里查不到
     TRAD: 1 << 9,        // 含繁体字
+    DUP: 1 << 10,        // 重复词：同一个词出现多次，除词频最高的一条外都标记
+    ZERO: 1 << 11,       // 词频为 0
+    REDUP: 1 << 12,      // 叠词：同一片段重复（闭包闭包），或同一个字连续 4 次以上
   };
 
   const NORMAL_CHAR = /^[㐀-䶿一-鿿\u{20000}-\u{3134f}\x21-\x7e〇]$/u;
   const HAN_CHAR = /^[㐀-鿿豈-﫿\u{20000}-\u{3134f}]$/u;
   const LATIN_RE = /[A-Za-z0-9]/;
+  const REDUP_RE = /^(.{2,}?)\1+$/u, REDUP1_RE = /^(.)\1{3,}$/u;
 
   const SURNAMES = new Set("王李张刘陈杨黄赵吴周徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖田董袁潘于蒋蔡余杜叶程苏魏吕丁任沈" +
     "姚卢姜崔钟谭陆汪范金石廖贾夏韦付方白邹孟熊秦邱江尹薛闫段雷侯龙史陶黎贺顾毛郝龚邵万钱严覃武戴莫孔向" +
@@ -200,6 +204,13 @@
         readings.set(c, (readings.get(c) || 0) + 1);
       });
     });
+    // 重复词：每个词保留词频最高的一条（并列取最先出现的），其余标记为重复
+    const best = new Map();
+    recs.forEach((r, i) => {
+      if (r.word === null) return;
+      const b = best.get(r.word);
+      if (b === undefined || r.rank > recs[b].rank) best.set(r.word, i);
+    });
     const pinyinsOf = new Map();
     for (const r of recs) {
       if (r.word === null) continue;
@@ -210,10 +221,14 @@
 
     return recs.map((r, i) => {
       const w = r.word, cs = chars[i];
-      let tags = 0, bad = [];
+      let tags = r.rank === 0 ? TAG.ZERO : 0, bad = [];
+      if (w !== null) {
+        if (best.get(w) !== i) tags |= TAG.DUP;
+        if (REDUP_RE.test(w) || REDUP1_RE.test(w)) tags |= TAG.REDUP;
+      }
       if (w === null || !cs.every(c => NORMAL_CHAR.test(c))) {
         if (w !== null) bad = cs.map((c, k) => (NORMAL_CHAR.test(c) ? -1 : k)).filter(k => k >= 0);
-        return { tags: TAG.GARBLED, bad };
+        return { tags: tags | TAG.GARBLED, bad };
       }
       if (LATIN_RE.test(w)) tags |= TAG.LATIN;
       if (tradChars && cs.some(c => tradChars.has(c))) tags |= TAG.TRAD;

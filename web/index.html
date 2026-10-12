@@ -70,7 +70,7 @@ header .spacer { flex: 1; }
   display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong);
   background: var(--panel); border-radius: 999px; padding: 2px 4px 2px 9px; cursor: pointer; user-select: none;
 }
-.chip:hover { border-color: var(--accent); }
+.chip:hover:not(.on):not(.off) { background: var(--hover); }
 .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
 .chip .count { background: var(--bg); color: var(--muted); border-radius: 999px; padding: 0 7px; font-size: 12px; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
 .chip.on { background: color-mix(in srgb, var(--c) 14%, var(--panel)); border-color: var(--c); font-weight: 600; }
@@ -83,6 +83,27 @@ header .spacer { flex: 1; }
 .seg button + button { border-left: 1px solid var(--line-strong); }
 .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .range { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+
+/* 当前筛选条件 */
+.exprbar { display: flex; align-items: baseline; gap: 8px; padding: 0 14px 10px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.exprbar .expr { font: 12px/1.6 ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; }
+.exprbar .op { color: var(--accent); font-weight: 700; }
+.exprbar .op.not { color: var(--danger); }
+.exprbar .t { font-weight: 600; }
+.exprbar .none { color: var(--faint); }
+
+/* 顶栏链接 */
+.links { display: inline-flex; gap: 6px; }
+.links a { display: inline-flex; align-items: center; gap: 5px; text-decoration: none; color: var(--text); font-size: 12px;
+  border: 1px solid var(--line-strong); background: var(--panel); border-radius: 6px; padding: 3px 9px; white-space: nowrap; }
+.links a:hover { background: var(--hover); }
+.links svg { width: 14px; height: 14px; fill: currentColor; }
+.links .heart { fill: #db61a2; }
+
+/* 网址警告 */
+#hostWarn { display: none; background: var(--danger-soft); color: var(--danger); padding: 8px 14px; font-weight: 600; border-bottom: 1px solid var(--danger); }
+.drop .warn { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 8px 12px; margin: 14px 0 4px; text-align: left; font-size: 12.5px; line-height: 1.7; }
 
 /* 三栏 */
 main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; padding: 0 14px; position: relative; }
@@ -101,7 +122,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; 
 
 .cols, .row {
   display: grid;
-  grid-template-columns: minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 86px;
+  grid-template-columns: minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 104px;
 }
 .cols { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; user-select: none; }
 .cols > div { padding: 4px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; }
@@ -180,6 +201,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
 </head>
 <body>
 
+<div id="hostWarn"></div>
 <header>
   <h1>搜狗词库清理</h1>
   <button class="btn" id="openBtn">打开文件…</button>
@@ -189,6 +211,12 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
   <span id="saveState"></span>
   <button class="btn" id="undoBtn" title="撤销 (⌘Z)" disabled>撤销</button>
   <button class="btn primary" id="exportBtn" disabled>导出干净词库</button>
+  <span class="links">
+    <a href="https://github.com/b-z/sogou-dict-cleaner" target="_blank" rel="noopener" title="源代码">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+    <a href="https://github.com/sponsors/b-z" target="_blank" rel="noopener" title="赞助作者">
+      <svg class="heart" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25zm0 0l.345.666a.752.752 0 01-.69 0L8 14.25z"/></svg>Sponsor</a>
+  </span>
   <input type="file" id="fileInput" accept=".bin" hidden>
 </header>
 
@@ -202,17 +230,15 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
   <span class="range">词频 <input type="number" min="0" id="freqMin" placeholder="不限">–<input type="number" min="0" id="freqMax" placeholder="不限"></span>
   <span class="range">字数 <input type="number" min="1" id="lenMin" placeholder="不限">–<input type="number" min="1" id="lenMax" placeholder="不限"></span>
   <button class="btn small" id="clearFilter">清除筛选</button>
-  <span class="spacer"></span>
-  <button class="btn primary" id="applyFilter" disabled title="把「现有词库」里符合当前筛选的词移到备选">筛选结果移到备选</button>
 </div>
+<div class="exprbar"><span>当前筛选</span><span class="expr" id="expr"></span><span id="exprNote"></span></div>
 
 <main>
   <section class="pane" data-pane="0" tabindex="0">
     <div class="pane-head">
       <h2>现有词库</h2><span class="badge" data-badge></span><span class="spacer"></span>
       <button class="btn small" data-selall>全选</button>
-      <button class="btn small" data-act="1" title="Delete">移到备选</button>
-      <button class="btn small danger" data-act="2" title="⇧Delete">移除</button>
+      <button class="btn small" data-act="1" title="Delete">移到备选 →</button>
     </div>
     <div class="cols"></div>
     <div class="body"><div class="spacer-y"></div><div class="empty-hint">没有符合筛选条件的词。</div></div>
@@ -222,18 +248,18 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
       <div class="pane-head">
         <h2>备选移除</h2><span class="badge" data-badge></span><span class="spacer"></span>
         <button class="btn small" data-selall>全选</button>
-        <button class="btn small" data-act="0" title="R">保留</button>
-        <button class="btn small danger" data-act="2" title="Delete">移除</button>
+        <button class="btn small" data-act="0" title="R">← 保留</button>
+        <button class="btn small danger" data-act="2" title="Delete">移除 ↓</button>
       </div>
       <div class="cols"></div>
-      <div class="body"><div class="spacer-y"></div><div class="empty-hint">在上方选好筛选条件，点「筛选结果移到备选」，<br>可疑的词会先放到这里，再逐条决定保留还是移除。</div></div>
+      <div class="body"><div class="spacer-y"></div><div class="empty-hint">在左栏用筛选找到可疑的词，全选后点「移到备选 →」，<br>它们会先放到这里，再逐条决定保留还是移除。</div></div>
     </section>
     <section class="pane" data-pane="2" tabindex="0">
       <div class="pane-head">
         <h2>确认移除</h2><span class="badge" data-badge></span><span class="spacer"></span>
         <button class="btn small" data-selall>全选</button>
-        <button class="btn small" data-act="0" title="R">保留</button>
-        <button class="btn small" data-act="1" title="Backspace">退回备选</button>
+        <button class="btn small" data-act="0" title="R">← 保留</button>
+        <button class="btn small" data-act="1" title="Backspace">↑ 退回备选</button>
       </div>
       <div class="cols"></div>
       <div class="body"><div class="spacer-y"></div><div class="empty-hint">导出时，这里的词会从词库中删除。</div></div>
@@ -249,6 +275,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
         <li>把它拖到这里，或点下面的按钮打开。</li>
         <li>挑完后点「导出干净词库」，再在搜狗里用「恢复（完全覆盖）」选择导出的文件。</li>
       </ol>
+      <div class="warn">⚠ 词库里有你打过的人名、地址、账号、聊天内容等大量个人信息。请确认地址栏是 <b>sogou-clean.pages.dev</b>，不要在来历不明或仿冒的网站上打开词库文件。</div>
       <button class="btn primary" id="openBtn2">打开备份文件…</button>
       <p class="privacy">文件只在你的浏览器里处理，不会上传到任何地方。挑选进度保存在本浏览器中。</p>
     </div>
@@ -257,7 +284,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
 
 <footer>
   <span>单击选择 · <kbd>⇧</kbd> 连选 · <kbd>⌘</kbd> 加选 · <kbd>⌘A</kbd> 全选 · <kbd>↑</kbd><kbd>↓</kbd> 移动</span>
-  <span><kbd>Delete</kbd> 往移除方向 · <kbd>⇧Delete</kbd> 直接移除 · <kbd>R</kbd> 保留 · <kbd>⌘Z</kbd> 撤销</span>
+  <span><kbd>Delete</kbd> 往移除方向移一步 · <kbd>R</kbd> 保留 · <kbd>B</kbd> 移到备选 · <kbd>⌘Z</kbd> 撤销</span>
   <span class="spacer"></span>
   <span id="summary"></span>
 </footer>
@@ -287,6 +314,9 @@ const TAGS = [
   { bit: S.TAG.NAME, name: "人名", color: "--t-blue", tip: "姓 + 名的组合，规则粗略，请逐条确认" },
   { bit: S.TAG.LATIN, name: "英文数字", color: "--t-teal", tip: "含英文字母或数字" },
   { bit: S.TAG.MULTI_PY, name: "多拼音", color: "--t-gray", tip: "同一个词以多种拼音出现" },
+  { bit: S.TAG.DUP, name: "重复词", color: "--t-gray", tip: "同一个词出现了多次。词频最高的一条不标记，其余都标记，移除后只留一条" },
+  { bit: S.TAG.ZERO, name: "零词频", color: "--t-gray", tip: "词频为 0" },
+  { bit: S.TAG.REDUP, name: "叠词", color: "--t-gray", tip: "同一片段重复（如「闭包闭包」「看一下看一下」），或同一个字连续 4 次以上" },
 ];
 const COLS = [
   { key: "word", label: "词" }, { key: "py", label: "拼音" },
@@ -295,7 +325,8 @@ const COLS = [
   { key: "tags", label: "标签" }, { key: null, label: "" },
 ];
 // 每栏的两个移动按钮：[目标栏, 文字, 是否危险操作]
-const ROW_ACTS = [[[1, "备选"], [2, "移除", 1]], [[0, "保留"], [2, "移除", 1]], [[0, "保留"], [1, "备选"]]];
+const ROW_ACTS = [[[1, "备选 →"]], [[0, "← 保留"], [2, "移除 ↓", 1]], [[0, "← 保留"], [1, "↑ 备选"]]];
+const OFFICIAL_HOST = "sogou-clean.pages.dev";
 
 // ---------- 状态 ----------
 let file = null;        // {name, bytes, recs, fp}
@@ -414,12 +445,8 @@ function filterChanged() {
 }
 function updateFilterCounts() {
   const counts = new Array(TAGS.length).fill(0);
-  let hits = 0;
-  const active = filterActive();
   for (let i = 0; i < N; i++) {
-    if (loc[i] !== 0) continue;
-    if (active && pass(i)) hits++;
-    if (!passBase(i)) continue;
+    if (loc[i] !== 0 || !passBase(i)) continue;
     const t = rows[i].tags;
     if (t) for (let k = 0; k < TAGS.length; k++) if (t & TAGS[k].bit) counts[k]++;
   }
@@ -427,15 +454,30 @@ function updateFilterCounts() {
     $(".count", c).textContent = N ? fmt(counts[k]) : "–";
     c.classList.toggle("zero", counts[k] === 0);
   });
-  const b = $("#applyFilter");
-  b.disabled = !active || hits === 0;
-  b.textContent = active ? `筛选结果移到备选（${fmt(hits)}）` : "筛选结果移到备选";
+  renderExpr();
 }
-function applyFilter() {
-  if (!filterActive()) return;
-  const ids = [];
-  for (let i = 0; i < N; i++) if (loc[i] === 0 && pass(i)) ids.push(i);
-  if (ids.length) move(ids, 1, `${fmt(ids.length)} 条移到备选`);
+// 把当前筛选条件写成「(生僻字 OR 次常用字) AND NOT 乱码 AND 词频 ≤ 1」的形式
+function renderExpr() {
+  const tag = k => `<span class="t" style="color:var(${TAGS[k].color})">${TAGS[k].name}</span>`;
+  const op = (o, cls = "") => ` <span class="op ${cls}">${o}</span> `;
+  const inc = [], exc = [];
+  TAGS.forEach((_, k) => { if (filter.tags[k] === 1) inc.push(tag(k)); else if (filter.tags[k] === -1) exc.push(tag(k)); });
+  const parts = [];
+  if (inc.length) {
+    const joined = inc.join(op(filter.mode === "any" ? "OR" : "AND"));
+    parts.push(inc.length > 1 && filter.mode === "any" ? `(${joined})` : joined);
+  }
+  for (const t of exc) parts.push(`<span class="op not">NOT</span> ${t}`);
+  const range = (name, lo, hi) => {
+    if (lo !== null && hi !== null) return lo === hi ? `${name} = ${lo}` : `${lo} ≤ ${name} ≤ ${hi}`;
+    if (lo !== null) return `${name} ≥ ${lo}`;
+    if (hi !== null) return `${name} ≤ ${hi}`;
+    return null;
+  };
+  for (const r of [range("词频", filter.freqMin, filter.freqMax), range("字数", filter.lenMin, filter.lenMax)]) if (r) parts.push(r);
+  $("#expr").innerHTML = parts.length ? parts.join(op("AND")) : `<span class="none">无，显示全部</span>`;
+  const q = $("#search").value.trim();
+  $("#exprNote").textContent = "只作用于「现有词库」" + (q ? `；搜索「${q}」作用于三栏` : "");
 }
 function setSearch(q) {
   q = q.trim();
@@ -504,7 +546,9 @@ class Pane {
   }
   refresh() {
     const v = [];
-    for (let i = 0; i < N; i++) if (loc[i] === this.idx && pass(i)) v.push(i);
+    // 筛选只作用于「现有词库」；搜索作用于三栏
+    for (let i = 0; i < N; i++)
+      if (loc[i] === this.idx && (this.idx === 0 ? pass(i) : !filter.search || filter.search(i))) v.push(i);
     if (this.sort.key) { const r = sortKey(this.sort.key), d = this.sort.dir; v.sort((a, b) => (r[a] - r[b]) * d); }
     this.view = v;
     for (const id of this.sel) if (loc[id] !== this.idx) this.sel.delete(id);
@@ -602,8 +646,7 @@ class Pane {
     const key = e.key.toLowerCase();
     if (e.key === "Delete" || e.key === "Backspace" || key === "d") {
       e.preventDefault();
-      if (e.shiftKey) this.moveSelection(2);
-      else if (this.idx < 2) this.moveSelection(this.idx + 1);
+      if (this.idx < 2) this.moveSelection(this.idx + 1);
       else if (e.key === "Backspace") this.moveSelection(1);
     } else if (key === "r" || key === "k") { e.preventDefault(); if (this.idx > 0) this.moveSelection(0); }
     else if (key === "b") { e.preventDefault(); if (this.idx !== 1) this.moveSelection(1); }
@@ -611,6 +654,7 @@ class Pane {
   }
   // 移动选区，之后光标停在原来位置附近，方便连续操作
   moveSelection(to) {
+    if (this.idx === 0 && to === 2) to = 1;   // 现有词库里的词必须先进备选
     if (to === this.idx) return;
     const ids = this.view.filter(id => this.sel.has(id));
     if (!ids.length) return;
@@ -707,7 +751,17 @@ function exportDialog() {
 }
 
 // ---------- 启动 ----------
+function checkHost() {
+  const h = location.hostname;
+  if (location.protocol === "file:" || !h || h === OFFICIAL_HOST || h.endsWith("." + OFFICIAL_HOST)
+      || h === "localhost" || h === "127.0.0.1") return;
+  const w = $("#hostWarn");
+  w.textContent = `⚠ 你正在访问的不是本工具的官方网址（${OFFICIAL_HOST}）。词库里含有大量个人信息，请不要在来历不明的网站上打开词库文件。`;
+  w.style.display = "block";
+}
+
 function init() {
+  checkHost();
   buildChips();
   const saved = store.get("sdc-filter");
   if (saved) {
@@ -742,7 +796,6 @@ function init() {
     $("#search").value = ""; filter.search = null;
     filterChanged();
   };
-  $("#applyFilter").onclick = applyFilter;
   let searchTimer = null;
   $("#search").addEventListener("input", e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setSearch(e.target.value), 180); });
   $("#undoBtn").onclick = undo;
