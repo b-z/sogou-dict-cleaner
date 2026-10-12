@@ -1,0 +1,31 @@
+name: 测试
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 示例词库与生成脚本一致
+        run: |
+          python3 tools/make_sample.py
+          git diff --exit-code -- tests/sample.bin web/sample.js
+      - name: 网页版与命令行版对拍
+        run: node tools/check_web.js tests/sample.bin --all-tags
+      - name: 命令行版
+        run: |
+          python3 sogou_dict.py check tests/sample.bin
+          python3 sogou_dict.py export tests/sample.bin /tmp/sample.txt
+          python3 sogou_dict.py rebuild tests/sample.bin /tmp/sample.txt /tmp/rebuilt.bin
+          python3 sogou_dict.py check /tmp/rebuilt.bin
+          python3 sogou_dict.py export /tmp/rebuilt.bin /tmp/rebuilt.txt
+          diff /tmp/sample.txt /tmp/rebuilt.txt

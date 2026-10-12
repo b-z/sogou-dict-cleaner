@@ -4,11 +4,15 @@
 
 搜狗用久了，用户词库里会积累很多没用的词条：「㥒쮤」这样的乱码、「埥䤅靨」这样字和读音完全对不上的汉字乱码、「我很喜欢喝」这样顺手记下的短语。打字时它们偶尔会冒出来，搜狗里又没法批量删除。这个工具直接处理搜狗导出的备份文件（`.bin`）。
 
+![界面截图（示例词库）](docs/screenshot.png)
+
 ## 网页版（推荐）
 
 在线使用：**https://sogou-clean.pages.dev**
 
-也可以直接打开本地的 `web/index.html`。点「打开文件」或把备份文件拖进页面即可。**文件只在浏览器里处理，不会上传。**
+也可以直接打开本地的 `web/index.html`。点「打开文件」或把备份文件拖进页面即可；没有备份文件的话，可以先点「用示例词库试试」看看效果。
+
+**文件只在浏览器里处理，不会上传。** 这不只是一句承诺：页面设置了内容安全策略（`connect-src 'none'`），浏览器会拒绝页面发起的任何网络请求，你可以在开发者工具里自己验证。
 
 > [!WARNING]
 > 用户词库里有你打过的人名、地址、账号、聊天内容等大量个人信息，非常敏感。请确认地址栏是 **sogou-clean.pages.dev**（官方网址只有这一个），不要在来历不明或仿冒的网站上打开词库文件。网页在其他域名下打开时会显示警告。
@@ -49,7 +53,7 @@
 | 零词频 | 词频为 0 |
 | 叠词 | 同一片段重复（如「闭包闭包」「看一下看一下」），或同一个字连续 4 次以上 |
 
-读音判断不依赖外部字典，而是用整本词库自身做参照：某个字以某个读音出现在多少个词里。所以词库越大，判断越准。
+读音判断不依赖外部字典，而是用整本词库自身做参照：某个字以某个读音出现在多少个词里。所以词库越大，判断越准；词库较小时，「汉字乱码」「人名」会再借助常用词典排除常见词，减少误判。所有标签都只是提示，最终删不删由你决定。
 
 拼音后面如果带括号，括号里是**实际输入的拼音**，比如「白平衡 bai ping heng (bai ping h)」表示当时是用简拼打出来的。只有和词条拼音不同时才显示。
 
@@ -76,7 +80,7 @@ npx wrangler@4 pages deploy web --project-name sogou-clean --branch main
 
 也可以在 Cloudflare 后台把 Pages 项目连接到 GitHub 仓库：构建命令留空，输出目录填 `web`，之后每次推送都会自动部署。
 
-`web/data.js`（常用词表和繁体字表，约 3.7 MB，压缩传输约 1.3 MB）由 `python3 tools/build_data.py` 生成。页面打开后会在后台加载它。
+`web/data.js`（常用词表和繁体字表，约 3.7 MB，压缩传输约 1.3 MB）由 `python3 tools/build_data.py` 生成。页面打开后会在后台加载它。`web/_headers` 是 Cloudflare Pages 的响应头配置（内容安全策略等）。
 
 ## 命令行
 
@@ -90,6 +94,12 @@ npx wrangler@4 pages deploy web --project-name sogou-clean --branch main
 | `python3 sogou_dict.py check 文件.bin` | 按搜狗加载时的逻辑检查文件头 |
 
 `clean` 只删「乱码」：保留只由汉字（含扩展区）、可见 ASCII 字符和「〇」组成的词，以及能正常解码的词。更细的挑选请用网页版。
+
+## 兼容性
+
+目前只用 **macOS 版搜狗输入法**导出的备份验证过（文件开头是 `SGPU` 四个字母）。其他平台或版本的搜狗，只要导出的也是这种格式，应该同样可用；更早的旧格式备份暂不支持，可以试试[深蓝词库转换](https://github.com/studyzy/imewlconverter)。
+
+如果遇到打不开或恢复失败的情况，欢迎提 issue，写明搜狗的平台、版本和报错信息。**请不要把词库文件本身上传到 issue**，里面有大量个人信息。
 
 ## 恢复失败？先检查文件权限
 
@@ -114,7 +124,6 @@ npx wrangler@4 pages deploy web --project-name sogou-clean --branch main
 
 命令行 `rebuild` 支持新增词条，新词按备份里常见的词条格式构造，**属于实验性功能**，还没有在搜狗里实际验证过；新增后的总数不能超过原文件的容量。
 
-网页版（`web/sogou.js`）和命令行版（`sogou_dict.py`）实现的是同一套逻辑，可以用 `node tools/check_web.js 备份.bin` 对拍，确认两边结果逐字节一致。
 
 ### 文件格式（SGPU）
 
@@ -138,10 +147,37 @@ npx wrangler@4 pages deploy web --project-name sogou-clean --branch main
 
 时序在搜狗内部称为伪时间（pseudo time），导入时由 `t_dictPseudoRelation::GetRealTimeByPseudo` 借助用户目录里的 `sgim_gd_pseudorelation.bin` 换算成真实时间。
 
+## 开发
+
+```
+web/            网站（静态文件，无需构建）
+  index.html    页面结构与样式
+  app.js        界面逻辑
+  sogou.js      解析、分析、重建（浏览器和 node 通用）
+  data.js       常用词表与繁体字表（tools/build_data.py 生成）
+  sample.js     示例词库（tools/make_sample.py 生成）
+sogou_dict.py   命令行版
+tests/sample.bin  合成的示例词库，覆盖每一种标签，人名均为虚构
+tools/          生成数据、生成示例、对拍测试的脚本
+redirect/       旧网址的跳转配置
+```
+
+网页版（`web/sogou.js`）和命令行版（`sogou_dict.py`）实现的是同一套解析与重建逻辑。改动后运行：
+
+```bash
+node tools/check_web.js tests/sample.bin --all-tags
+```
+
+它会对拍两边的导出和重建结果（要求逐字节一致），并检查示例词库能命中每一种标签。GitHub Actions 会在每次推送时自动运行这些测试。手上有真实备份的话，也可以拿它来对拍：`node tools/check_web.js 你的备份.bin`。
+
+修改 `tools/make_sample.py` 后需要重新生成示例词库：`python3 tools/make_sample.py`。
+
 ## 致谢与许可
 
 - 词条解析逻辑和拼音码表参考了[深蓝词库转换（imewlconverter）](https://github.com/studyzy/imewlconverter)中的 `SougouBinParser`，该部分又源自 [nopdan/rose](https://github.com/nopdan/rose)。因此本项目以 [GPL-3.0](LICENSE) 发布。
 - 常用词表来自 [jieba 分词](https://github.com/fxsjy/jieba)的词典（MIT 许可，Copyright (c) 2013 Sun Junyi）。
 - 繁体字表来自 [OpenCC](https://github.com/BYVoid/OpenCC) 的 `TSCharacters.txt`（Apache-2.0 许可）。
+
+第三方许可证全文见 [web/THIRD_PARTY_NOTICES.txt](web/THIRD_PARTY_NOTICES.txt)，网站页脚也有链接。
 
 本工具与搜狗公司无关。请只处理你自己的词库文件，操作前做好备份。

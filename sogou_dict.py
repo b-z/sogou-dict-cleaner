@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# 词条解析逻辑与拼音码表参考 imewlconverter 的 SougouBinParser（源自 nopdan/rose），均为 GPL-3.0。
 """搜狗输入法用户词库备份（.bin，SGPU 格式）清理工具。
 
 用法:
@@ -60,15 +62,24 @@ def layout(data):
 
 def read_records(data):
     """按索引顺序读出所有词条"""
-    ib, _isz, cnt, db, _dcap, _dused = layout(data)
+    ib, _isz, cnt, db, _dcap, dused = layout(data)
+    end = db + dused
+    if ib + 4 * cnt > len(data) or end > len(data):
+        raise ValueError("文件不完整或已损坏")
     out = []
     for i in range(cnt):
         off = u32(data, ib + 4 * i)
         p = db + off
+        if p + 15 > end:
+            raise ValueError(f"第 {i + 1} 条词条超出数据区，文件不完整或已损坏")
         rank = struct.unpack_from("<H", data, p)[0]
         n = struct.unpack_from("<H", data, p + 9)[0]
+        if p + 15 + n > end:
+            raise ValueError(f"第 {i + 1} 条词条超出数据区，文件不完整或已损坏")
         codes = struct.unpack_from(f"<{n // 2}H", data, p + 11)
         ext, wlen = struct.unpack_from("<HH", data, p + 11 + n)
+        if p + 13 + n + ext > end or wlen > ext - 2:
+            raise ValueError(f"第 {i + 1} 条词条长度异常，文件不完整或已损坏")
         try:
             word = data[p + 15 + n:p + 15 + n + wlen].decode("utf-16-le")
         except UnicodeDecodeError:
@@ -221,13 +232,10 @@ def cmd_export(src, dst=None):
 def cmd_clean(src, dst):
     orig = open(src, "rb").read()
     recs = read_records(orig)
-    good = [r for r in recs if r.word is not None and NORMAL_WORD.match(r.word)]
-    entries = [(i, r.word, r.pinyin, None) for i, r in enumerate(good)]
-    data, nkept, _, errors = rebuild(orig, entries)
+    keep = {i: None for i, r in enumerate(recs) if r.word is not None and NORMAL_WORD.match(r.word)}
+    data, nkept = rebuild_indices(orig, keep, recs=recs)
     write_bin(dst, data)
     print(f"保留 {nkept} 条，删除 {len(recs) - nkept} 条乱码词条", file=sys.stderr)
-    for e in errors[:50]:
-        print("  " + e, file=sys.stderr)
 
 
 def cmd_rebuild(src, tsv, dst):
@@ -259,4 +267,7 @@ if __name__ == "__main__":
     if not lo <= len(args) <= hi:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
-    sys.exit(fn(*args) or 0)
+    try:
+        sys.exit(fn(*args) or 0)
+    except (ValueError, struct.error, OSError) as e:
+        sys.exit(f"错误：{e}")

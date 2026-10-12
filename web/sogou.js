@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
 /*
+ * 词条解析逻辑与拼音码表参考 imewlconverter 的 SougouBinParser（源自 nopdan/rose），均为 GPL-3.0。
  * 搜狗输入法用户词库备份（.bin，SGPU 格式）的解析、分析与重建。
  * 浏览器中挂在 globalThis.SogouDict 上；在 node 中可直接 require。
  * 与 sogou_dict.py 的逻辑保持一致。
@@ -82,12 +84,17 @@
     const L = layout(u8), dv = view(u8);
     if (L.ib + 4 * L.cnt > u8.length || L.db + L.dused > u8.length) throw new Error("文件不完整或已损坏");
     const recs = new Array(L.cnt);
+    const end = L.db + L.dused;
     for (let i = 0; i < L.cnt; i++) {
+      // 逐条检查越界：文件被截断或损坏时给出明确提示，而不是抛出 RangeError
+      if (L.db + u32(dv, L.ib + 4 * i) + 15 > end) throw new Error(`第 ${i + 1} 条词条超出数据区，文件不完整或已损坏`);
       const off = u32(dv, L.ib + 4 * i), p = L.db + off;
       const n = u16(dv, p + 9);
       const codes = new Array(n >> 1);
       for (let k = 0; k < codes.length; k++) codes[k] = u16(dv, p + 11 + 2 * k);
+      if (p + 15 + n > end) throw new Error(`第 ${i + 1} 条词条超出数据区，文件不完整或已损坏`);
       const ext = u16(dv, p + 11 + n), wlen = u16(dv, p + 13 + n);
+      if (p + 13 + n + ext > end || 15 + n + wlen > 13 + n + ext) throw new Error(`第 ${i + 1} 条词条长度异常，文件不完整或已损坏`);
       let word = null;
       try { word = utf16.decode(u8.subarray(p + 15 + n, p + 15 + n + wlen)); } catch (e) { word = null; }
       // 尾部通常是拼音的副本；不同时记录的是实际怎么打出来的（例如用了简拼）
@@ -197,7 +204,9 @@
     return gbLevels.get(ch) || 3;
   }
 
-  function looksLikeName(w, chars, knownWords) {
+  function looksLikeName(w, chars, knownWords, commonWords) {
+    // 「已有的词」既查用户词库，也查常用词典，这样词库很小时也能排除「文件夹」「白平衡」这类词
+    const known = x => knownWords.has(x) || (commonWords && commonWords.has(x));
     let given;
     if (COMPOUND_SURNAMES.has(w.slice(0, 2)) && chars.length >= 3 && chars.length <= 4) given = chars.slice(2);
     else if (SURNAMES.has(chars[0]) && chars.length >= 2 && chars.length <= 3) given = chars.slice(1);
@@ -205,7 +214,7 @@
     if (given.some(c => NOT_NAME_CHARS.has(c))) return false;
     if (given.length === 1) return NAME_CHARS.has(given[0]);
     // 「游泳馆」「关键词」这类：后两字或前两字本身就是常用词
-    return !knownWords.has(given.join("")) && !knownWords.has(chars.slice(0, 2).join(""));
+    return !known(given.join("")) && !known(chars.slice(0, 2).join(""));
   }
 
   /**
@@ -271,13 +280,14 @@
           const score = corroborated / cs.length;
           // 乱码用的多是在别处几乎不出现的冷僻字；字常见只是读音不对的属于拼音损坏
           const unfamiliar = support.filter((s, k) => (readings.get(cs[k]) || 0) - s < 2).length / cs.length;
-          if (cs.length >= 2 && unfamiliar >= 0.5 &&
+          // 词库小的时候正常词也缺少佐证，所以还要求：不是常用词，并且含有次常用字或生僻字
+          if (cs.length >= 2 && unfamiliar >= 0.5 && !(commonWords && commonWords.has(w)) && levels.some(l => l >= 2) &&
               ((score === 0 && cs.length >= 3) || (score < 0.5 && levels.includes(3)))) {
             tags |= TAG.HAN_GARBLED;
             bad = support.map((s, k) => (s <= 1 ? k : -1)).filter(k => k >= 0);
           }
         }
-        if (!levels.includes(3) && looksLikeName(w, cs, pinyinsOf)) tags |= TAG.NAME;
+        if (!levels.includes(3) && looksLikeName(w, cs, pinyinsOf, commonWords)) tags |= TAG.NAME;
         if (commonWords && cs.length >= 2 && !commonWords.has(w)) tags |= TAG.UNCOMMON;
       }
       return { tags, bad };

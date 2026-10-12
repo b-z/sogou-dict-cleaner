@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
 """生成网页用的数据文件 web/data.js：常用词表与繁体字表。
 
 用法: python3 tools/build_data.py [jieba dict.txt] [OpenCC TSCharacters.txt]
