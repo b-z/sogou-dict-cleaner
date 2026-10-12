@@ -126,7 +126,6 @@ def sort_key(codes, word):
 def rebuild(orig, entries):
     """以 orig 为模板，按 entries [(行号, 词, 拼音, 词频|None)] 重建。
     返回 (新文件字节, 保留条数, 新增列表, 错误列表)"""
-    ib, isz, _cnt, db, dcap, _dused = layout(orig)
     recs = read_records(orig)
     pool = defaultdict(list)  # key -> 原记录在索引中的位置
     for i, r in enumerate(recs):
@@ -148,7 +147,15 @@ def rebuild(orig, entries):
             keep[pool[k].pop(0)] = rank
         else:
             added.append((word, codes, 1 if rank is None else rank))
+    return rebuild_indices(orig, keep, added, recs) + (added, errors)
 
+
+def rebuild_indices(orig, keep, added=(), recs=None):
+    """以 orig 为模板重建。keep: {原索引位置: 新词频或 None}；added: [(词, 拼音码, 词频)]。
+    返回 (新文件字节, 保留条数)"""
+    ib, isz, _cnt, db, dcap, _dused = layout(orig)
+    if recs is None:
+        recs = read_records(orig)
     # 数据区：保留记录按原物理顺序紧凑排列
     kept = sorted(keep, key=lambda i: recs[i].offset)
     blob, new_off = bytearray(), {}
@@ -159,7 +166,7 @@ def rebuild(orig, entries):
         new_off[i] = len(blob)
         blob += raw
     # 索引：保留记录维持原索引相对顺序，新词按 (拼音码, 词) 插入
-    index = [(sort_key(recs[i].codes, recs[i].word), new_off[i]) for i in sorted(kept)]
+    index = [(sort_key(recs[i].codes, recs[i].word or ""), new_off[i]) for i in sorted(kept)]
     for word, codes, rank in added:
         index.append((sort_key(codes, word), len(blob)))
         blob += new_record(word, codes, max(0, min(rank, 0xFFFF)))
@@ -180,7 +187,7 @@ def rebuild(orig, entries):
         struct.pack_into("<I", out, ib + 4 * j, off)
     out[db:db + len(blob)] = blob
     struct.pack_into("<I", out, 0x20, header_checksum(out))
-    return bytes(out), len(kept), added, errors
+    return bytes(out), len(kept)
 
 
 def read_tsv(path):
