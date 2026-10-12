@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>搜狗词库清理</title>
+<meta name="description" content="在浏览器里清理搜狗输入法用户词库：筛出乱码、生僻字、拼音不符、人名等词条，导出可直接恢复的干净词库。文件不会上传。">
+<style>
+:root {
+  --bg: #f5f5f7; --panel: #ffffff; --line: #e3e3e8; --line-strong: #d0d0d7;
+  --text: #1d1d1f; --muted: #6e6e73; --faint: #a1a1a6;
+  --accent: #0a66d8; --accent-text: #ffffff; --accent-soft: #e6f0fd;
+  --sel: #dce9fb; --sel-strong: #c4dafa; --hover: #f2f4f8;
+  --danger: #c62828; --danger-soft: #fdecea; --mark: #ffe08a; --mark-text: #6b3f00;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  --t-red: #c62828; --t-orange: #c25400; --t-purple: #7b3fb5; --t-violet: #8e6cc4; --t-amber: #9a6a00;
+  --t-blue: #1f5fbf; --t-teal: #0f7a72; --t-gray: #6e6e73; --t-green: #2e7d32; --t-brown: #8d5524;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e; --panel: #232326; --line: #333338; --line-strong: #44444a;
+    --text: #f2f2f7; --muted: #a1a1a8; --faint: #6e6e73;
+    --accent: #3d8bfd; --accent-soft: #1d3150; --sel: #1f3a5f; --sel-strong: #28497a; --hover: #2b2b30;
+    --danger: #ff6b6b; --danger-soft: #3a1f1f; --mark: #7a5a00; --mark-text: #ffe7a3;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+    --t-red: #ff7b72; --t-orange: #ffa657; --t-purple: #c39bf0; --t-violet: #b6a1e6; --t-amber: #e3b341;
+    --t-blue: #79b8ff; --t-teal: #56d4c4; --t-gray: #a1a1a8; --t-green: #7ee787; --t-brown: #d9a066;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+.btn {
+  border: 1px solid var(--line-strong); background: var(--panel); border-radius: 6px;
+  padding: 3px 10px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.small { padding: 1px 8px; font-size: 12px; }
+input[type=search], input[type=number] {
+  font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line-strong);
+  border-radius: 6px; padding: 3px 8px; outline: none;
+}
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+input[type=number] { width: 58px; padding: 2px 4px; text-align: right; -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button { display: none; }
+
+/* 顶栏 */
+header { display: flex; align-items: center; gap: 10px; padding: 10px 14px 8px; }
+header h1 { font-size: 15px; margin: 0 4px 0 0; font-weight: 650; white-space: nowrap; }
+header .file { color: var(--muted); max-width: 26vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header .spacer { flex: 1; }
+#search { width: 240px; }
+#saveState { color: var(--faint); font-size: 12px; white-space: nowrap; }
+
+/* 筛选栏 */
+.filterbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.filterbar .label { color: var(--muted); }
+.filterbar .sep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 4px; }
+.filterbar .spacer { flex: 1; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong);
+  background: var(--panel); border-radius: 999px; padding: 2px 4px 2px 9px; cursor: pointer; user-select: none;
+}
+.chip:hover { border-color: var(--accent); }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.chip .count { background: var(--bg); color: var(--muted); border-radius: 999px; padding: 0 7px; font-size: 12px; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+.chip.on { background: color-mix(in srgb, var(--c) 14%, var(--panel)); border-color: var(--c); font-weight: 600; }
+.chip.off { border-color: var(--danger); color: var(--danger); }
+.chip.off .name { text-decoration: line-through; }
+.chip.off .dot { background: var(--danger); }
+.chip.zero:not(.on):not(.off) { opacity: .5; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 2px 9px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.range { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+
+/* 三栏 */
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; padding: 0 14px; position: relative; }
+.right { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; min-height: 0; }
+.pane {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; min-height: 0; outline: none; overflow: hidden;
+}
+.pane:focus-within, .pane:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.pane-head { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.pane-head h2 { font-size: 13px; margin: 0 2px 0 0; font-weight: 650; white-space: nowrap; }
+.pane-head .badge { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pane-head .spacer { flex: 1; }
+.pane[data-pane="1"] .pane-head h2 { color: var(--t-amber); }
+.pane[data-pane="2"] .pane-head h2 { color: var(--danger); }
+
+.cols, .row {
+  display: grid;
+  grid-template-columns: minmax(80px, 2fr) minmax(60px, 1.5fr) 52px 36px 48px minmax(64px, 1.4fr) 86px;
+}
+.cols { border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; user-select: none; }
+.cols > div { padding: 4px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.cols > div:hover { color: var(--text); }
+.cols > div.sorted { color: var(--text); font-weight: 600; }
+.cols > div.nosort { cursor: default; }
+.cols > div.num, .row > .num { text-align: right; }
+.body { flex: 1; overflow-y: auto; position: relative; min-height: 0; }
+.spacer-y { width: 1px; }
+.row {
+  position: absolute; left: 0; right: 0; height: 26px; align-items: center; cursor: default;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); user-select: none;
+}
+.row:hover { background: var(--hover); }
+.row.sel { background: var(--sel); }
+.row.cur { box-shadow: inset 2px 0 0 var(--accent); }
+.pane:focus .row.sel, .pane:focus-within .row.sel { background: var(--sel-strong); }
+.row > div { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .w { font-size: 14px; }
+.row .w mark { background: var(--mark); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+.row .py { color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.row .num { font-variant-numeric: tabular-nums; color: var(--muted); }
+.row .acts { display: flex; gap: 4px; justify-content: flex-end; padding-right: 8px; }
+.row .acts button {
+  border: 1px solid transparent; background: none; border-radius: 4px; padding: 0 5px; font-size: 12px; line-height: 18px;
+  color: var(--faint); cursor: pointer;
+}
+.row:hover .acts button, .row.sel .acts button { color: var(--muted); border-color: var(--line-strong); background: var(--panel); }
+.row .acts button:hover { color: var(--accent) !important; border-color: var(--accent) !important; }
+.row .acts button.danger:hover { color: var(--danger) !important; border-color: var(--danger) !important; }
+.tag { display: inline-block; font-size: 11px; line-height: 16px; padding: 0 4px; border-radius: 4px; margin-right: 3px; border: 1px solid currentColor; opacity: .9; }
+.empty-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--faint);
+  text-align: center; padding: 20px; pointer-events: none; line-height: 1.8; }
+
+/* 未加载文件时 */
+#welcome {
+  position: absolute; inset: 0 14px; display: flex; align-items: center; justify-content: center;
+  background: var(--bg); z-index: 5;
+}
+.drop {
+  width: min(560px, 100%); background: var(--panel); border: 2px dashed var(--line-strong); border-radius: 14px;
+  padding: 32px 36px; text-align: center; box-shadow: var(--shadow);
+}
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop h2 { margin: 0 0 6px; font-size: 18px; }
+.drop p { color: var(--muted); margin: 6px 0; }
+.drop ol { text-align: left; color: var(--muted); margin: 16px auto; padding-left: 20px; line-height: 1.9; max-width: 440px; }
+.drop .btn.primary { padding: 7px 20px; font-size: 14px; margin-top: 6px; }
+.drop .privacy { font-size: 12px; color: var(--faint); margin-top: 14px; }
+#dropOverlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 12%, transparent); border: 3px dashed var(--accent);
+  display: none; align-items: center; justify-content: center; font-size: 18px; color: var(--accent); z-index: 50; pointer-events: none; }
+body.dragging #dropOverlay { display: flex; }
+
+footer { display: flex; align-items: center; gap: 16px; padding: 8px 14px; color: var(--muted); font-size: 12px; }
+footer .spacer { flex: 1; }
+kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); }
+
+#toast {
+  position: fixed; left: 50%; bottom: 44px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none;
+  background: var(--text); color: var(--bg); border-radius: 8px; padding: 8px 12px; display: flex; gap: 12px; align-items: center;
+  transition: .18s; box-shadow: 0 4px 16px rgba(0,0,0,.2); max-width: 80vw; z-index: 40;
+}
+#toast.show { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
+#toast button { background: none; border: none; color: var(--accent); filter: brightness(1.4); cursor: pointer; font-weight: 600; padding: 0; }
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: center; justify-content: center; z-index: 60; }
+.modal-back.show { display: flex; }
+.modal { background: var(--panel); border-radius: 12px; padding: 20px 22px; width: min(520px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.modal h3 { margin: 0 0 10px; font-size: 16px; }
+.modal p { margin: 8px 0; color: var(--muted); line-height: 1.6; }
+.modal .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 12px 0; font-variant-numeric: tabular-nums; }
+.modal .stats b { text-align: right; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); background: color-mix(in srgb, var(--bg) 80%, transparent); z-index: 70; font-size: 14px; }
+.busy.show { display: flex; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>搜狗词库清理</h1>
+  <button class="btn" id="openBtn">打开文件…</button>
+  <span class="file" id="fileName"></span>
+  <span class="spacer"></span>
+  <input type="search" id="search" placeholder="搜索词或拼音（/正则/）" autocomplete="off" spellcheck="false" disabled>
+  <span id="saveState"></span>
+  <button class="btn" id="undoBtn" title="撤销 (⌘Z)" disabled>撤销</button>
+  <button class="btn primary" id="exportBtn" disabled>导出干净词库</button>
+  <input type="file" id="fileInput" accept=".bin" hidden>
+</header>
+
+<div class="filterbar" id="filterbar">
+  <span class="label">筛选</span>
+  <span id="chips" style="display:contents"></span>
+  <span class="sep"></span>
+  <span class="seg" id="modeSeg" title="多个「包含」标签之间的关系">
+    <button data-mode="any" class="on">满足任一</button><button data-mode="all">全部满足</button>
+  </span>
+  <span class="range">词频 <input type="number" min="0" id="freqMin" placeholder="不限">–<input type="number" min="0" id="freqMax" placeholder="不限"></span>
+  <span class="range">字数 <input type="number" min="1" id="lenMin" placeholder="不限">–<input type="number" min="1" id="lenMax" placeholder="不限"></span>
+  <button class="btn small" id="clearFilter">清除筛选</button>
+  <span class="spacer"></span>
+  <button class="btn primary" id="applyFilter" disabled title="把「现有词库」里符合当前筛选的词移到备选">筛选结果移到备选</button>
+</div>
+
+<main>
+  <section class="pane" data-pane="0" tabindex="0">
+    <div class="pane-head">
+      <h2>现有词库</h2><span class="badge" data-badge></span><span class="spacer"></span>
+      <button class="btn small" data-selall>全选</button>
+      <button class="btn small" data-act="1" title="Delete">移到备选</button>
+      <button class="btn small danger" data-act="2" title="⇧Delete">移除</button>
+    </div>
+    <div class="cols"></div>
+    <div class="body"><div class="spacer-y"></div><div class="empty-hint">没有符合筛选条件的词。</div></div>
+  </section>
+  <div class="right">
+    <section class="pane" data-pane="1" tabindex="0">
+      <div class="pane-head">
+        <h2>备选移除</h2><span class="badge" data-badge></span><span class="spacer"></span>
+        <button class="btn small" data-selall>全选</button>
+        <button class="btn small" data-act="0" title="R">保留</button>
+        <button class="btn small danger" data-act="2" title="Delete">移除</button>
+      </div>
+      <div class="cols"></div>
+      <div class="body"><div class="spacer-y"></div><div class="empty-hint">在上方选好筛选条件，点「筛选结果移到备选」，<br>可疑的词会先放到这里，再逐条决定保留还是移除。</div></div>
+    </section>
+    <section class="pane" data-pane="2" tabindex="0">
+      <div class="pane-head">
+        <h2>确认移除</h2><span class="badge" data-badge></span><span class="spacer"></span>
+        <button class="btn small" data-selall>全选</button>
+        <button class="btn small" data-act="0" title="R">保留</button>
+        <button class="btn small" data-act="1" title="Backspace">退回备选</button>
+      </div>
+      <div class="cols"></div>
+      <div class="body"><div class="spacer-y"></div><div class="empty-hint">导出时，这里的词会从词库中删除。</div></div>
+    </section>
+  </div>
+
+  <div id="welcome">
+    <div class="drop" id="dropCard">
+      <h2>清理搜狗输入法用户词库</h2>
+      <p>筛出乱码、生僻字、拼音对不上、人名等词条，导出可以直接恢复的干净词库。</p>
+      <ol>
+        <li>在搜狗输入法「偏好设置 › 词库 › 中文用户词库」里点「导出/备份」，得到一个 <b>.bin</b> 文件。</li>
+        <li>把它拖到这里，或点下面的按钮打开。</li>
+        <li>挑完后点「导出干净词库」，再在搜狗里用「恢复（完全覆盖）」选择导出的文件。</li>
+      </ol>
+      <button class="btn primary" id="openBtn2">打开备份文件…</button>
+      <p class="privacy">文件只在你的浏览器里处理，不会上传到任何地方。挑选进度保存在本浏览器中。</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>单击选择 · <kbd>⇧</kbd> 连选 · <kbd>⌘</kbd> 加选 · <kbd>⌘A</kbd> 全选 · <kbd>↑</kbd><kbd>↓</kbd> 移动</span>
+  <span><kbd>Delete</kbd> 往移除方向 · <kbd>⇧Delete</kbd> 直接移除 · <kbd>R</kbd> 保留 · <kbd>⌘Z</kbd> 撤销</span>
+  <span class="spacer"></span>
+  <span id="summary"></span>
+</footer>
+
+<div id="toast"><span id="toastText"></span><button id="toastUndo">撤销</button></div>
+<div class="modal-back" id="modal"><div class="modal" id="modalBody"></div></div>
+<div class="busy" id="busy"></div>
+<div id="dropOverlay">松开以打开词库文件</div>
+
+<script src="sogou.js"></script>
+<script>
+"use strict";
+const S = window.SogouDict;
+const ROW_H = 26;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = n => n.toLocaleString("zh-CN");
+
+const TAGS = [
+  { bit: S.TAG.GARBLED, name: "乱码", color: "--t-red", tip: "含非汉字、非 ASCII 的字符，或文字无法解码" },
+  { bit: S.TAG.HAN_GARBLED, name: "汉字乱码", color: "--t-orange", tip: "全是冷僻汉字，读音也对不上（如「埥䤅靨」读作 he kuang hai）" },
+  { bit: S.TAG.RARE3, name: "生僻字", color: "--t-purple", tip: "含 GB2312 以外的字" },
+  { bit: S.TAG.RARE2, name: "次常用字", color: "--t-violet", tip: "含 GB2312 二级字。正常词也不少，请逐条确认" },
+  { bit: S.TAG.TRAD, name: "繁体字", color: "--t-brown", tip: "含繁体字（有不同于自身的简体写法，依据 OpenCC 字表）" },
+  { bit: S.TAG.PY_MISMATCH, name: "拼音不符", color: "--t-amber", tip: "字数与音节数不一致（这类词按正常拼音打不出来），或某个字的读音在整本词库里只出现在这个词中" },
+  { bit: S.TAG.UNCOMMON, name: "非常用词", color: "--t-green", tip: "两字及以上的汉字词，在常用词典（jieba）里查不到，多是随手输入记下的短语" },
+  { bit: S.TAG.NAME, name: "人名", color: "--t-blue", tip: "姓 + 名的组合，规则粗略，请逐条确认" },
+  { bit: S.TAG.LATIN, name: "英文数字", color: "--t-teal", tip: "含英文字母或数字" },
+  { bit: S.TAG.MULTI_PY, name: "多拼音", color: "--t-gray", tip: "同一个词以多种拼音出现" },
+];
+const COLS = [
+  { key: "word", label: "词" }, { key: "py", label: "拼音" },
+  { key: "rank", label: "词频", num: true }, { key: "len", label: "字数", num: true },
+  { key: "time", label: "时序", num: true, tip: "词条里记录的相对时间（伪时间），数值越大越近，无法换算成具体日期" },
+  { key: "tags", label: "标签" }, { key: null, label: "" },
+];
+// 每栏的两个移动按钮：[目标栏, 文字, 是否危险操作]
+const ROW_ACTS = [[[1, "备选"], [2, "移除", 1]], [[0, "保留"], [2, "移除", 1]], [[0, "保留"], [1, "备选"]]];
+
+// ---------- 状态 ----------
+let file = null;        // {name, bytes, recs, fp}
+let rows = [];          // {w, py, rank, time, tags, bad, len}
+let N = 0, loc = new Uint8Array(0);
+const undoStack = [];
+const filter = { tags: new Int8Array(TAGS.length), mode: "any", freqMin: null, freqMax: null, lenMin: null, lenMax: null, search: null };
+let panes = [];
+
+// ---------- 存储 ----------
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+
+// ---------- 数据加载 ----------
+let dictsPromise = null;
+function loadDicts() {
+  if (!dictsPromise) dictsPromise = new Promise(resolve => {
+    const s = document.createElement("script");
+    s.src = "data.js";
+    s.onload = () => resolve({
+      commonWords: new Set(globalThis.SOGOU_COMMON_WORDS.split("\n")),
+      tradChars: new Set(Array.from(globalThis.SOGOU_TRAD_CHARS)),
+    });
+    s.onerror = () => resolve({});   // 词典加载失败时，相关标签不可用
+    document.head.appendChild(s);
+  });
+  return dictsPromise;
+}
+
+function busy(msg) { const b = $("#busy"); b.textContent = msg || ""; b.classList.toggle("show", !!msg); }
+
+async function openFile(f) {
+  if (!f) return;
+  busy("正在读取词库…");
+  try { await loadBuffer(f.name, await f.arrayBuffer()); }
+  catch (e) { busy(); alertModal("无法打开这个文件", e.message + "。请确认它是搜狗输入法导出的用户词库备份（.bin）。"); }
+}
+
+async function loadBuffer(name, buf) {
+  busy("正在分析词库…");
+  await new Promise(r => setTimeout(r, 20));
+  const bytes = new Uint8Array(buf);
+  const recs = S.parse(bytes);
+  const dicts = await loadDicts();
+  const info = S.analyze(recs, dicts);
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  file = { name, bytes, recs, fp: `sdc:${name}:${bytes.length}:${dv.getUint32(0x20, true)}:${recs.length}` };
+  rows = recs.map((r, i) => ({
+    w: r.word === null ? "〈无法解码〉" : r.word, py: r.pinyin, rank: r.rank, time: r.time,
+    tags: info[i].tags, bad: info[i].bad, len: r.word === null ? 0 : Array.from(r.word).length,
+  }));
+  N = rows.length; loc = new Uint8Array(N);
+  undoStack.length = 0;
+  const saved = store.get(file.fp);
+  if (saved) {
+    for (const i of saved.c || []) if (i < N) loc[i] = 1;
+    for (const i of saved.r || []) if (i < N) loc[i] = 2;
+  }
+  for (const k in sortKeys) delete sortKeys[k];
+  $("#fileName").textContent = name; $("#fileName").title = name;
+  document.title = `${name} · 搜狗词库清理`;
+  $("#welcome").style.display = "none";
+  ["#search", "#exportBtn"].forEach(s => ($(s).disabled = false));
+  panes.forEach(p => { p.sel.clear(); p.anchor = p.cursor = -1; p.body.scrollTop = 0; });
+  refreshAll();
+  $("#saveState").textContent = saved ? "已恢复上次进度" : "";
+  busy();
+  panes[0].el.focus();
+}
+
+// ---------- 筛选 ----------
+function buildChips() {
+  const box = $("#chips");
+  TAGS.forEach((t, k) => {
+    const c = document.createElement("span");
+    c.className = "chip"; c.style.setProperty("--c", `var(${t.color})`);
+    c.title = t.tip + "\n点击切换：包含 → 排除 → 不限";
+    c.innerHTML = `<span class="dot"></span><span class="name">${t.name}</span><span class="count">–</span>`;
+    c.onclick = () => { filter.tags[k] = filter.tags[k] === 0 ? 1 : filter.tags[k] === 1 ? -1 : 0; filterChanged(); };
+    box.appendChild(c);
+  });
+}
+function filterActive() {
+  return filter.tags.some(x => x !== 0) || filter.freqMin !== null || filter.freqMax !== null
+    || filter.lenMin !== null || filter.lenMax !== null || !!filter.search;
+}
+// 基础条件：词频、字数、搜索
+function passBase(i) {
+  const r = rows[i];
+  if (filter.freqMin !== null && r.rank < filter.freqMin) return false;
+  if (filter.freqMax !== null && r.rank > filter.freqMax) return false;
+  if (filter.lenMin !== null && r.len < filter.lenMin) return false;
+  if (filter.lenMax !== null && r.len > filter.lenMax) return false;
+  if (filter.search && !filter.search(i)) return false;
+  return true;
+}
+let incMask = 0, excMask = 0;
+function pass(i) {
+  if (!passBase(i)) return false;
+  const t = rows[i].tags;
+  if (t & excMask) return false;
+  if (incMask) return filter.mode === "any" ? (t & incMask) !== 0 : (t & incMask) === incMask;
+  return true;
+}
+function filterChanged() {
+  incMask = excMask = 0;
+  TAGS.forEach((t, k) => { if (filter.tags[k] === 1) incMask |= t.bit; else if (filter.tags[k] === -1) excMask |= t.bit; });
+  document.querySelectorAll("#chips .chip").forEach((c, k) => {
+    c.classList.toggle("on", filter.tags[k] === 1); c.classList.toggle("off", filter.tags[k] === -1);
+  });
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === filter.mode));
+  store.set("sdc-filter", { tags: Array.from(filter.tags), mode: filter.mode, freqMin: filter.freqMin, freqMax: filter.freqMax, lenMin: filter.lenMin, lenMax: filter.lenMax });
+  if (N) refreshAll();
+}
+function updateFilterCounts() {
+  const counts = new Array(TAGS.length).fill(0);
+  let hits = 0;
+  const active = filterActive();
+  for (let i = 0; i < N; i++) {
+    if (loc[i] !== 0) continue;
+    if (active && pass(i)) hits++;
+    if (!passBase(i)) continue;
+    const t = rows[i].tags;
+    if (t) for (let k = 0; k < TAGS.length; k++) if (t & TAGS[k].bit) counts[k]++;
+  }
+  document.querySelectorAll("#chips .chip").forEach((c, k) => {
+    $(".count", c).textContent = N ? fmt(counts[k]) : "–";
+    c.classList.toggle("zero", counts[k] === 0);
+  });
+  const b = $("#applyFilter");
+  b.disabled = !active || hits === 0;
+  b.textContent = active ? `筛选结果移到备选（${fmt(hits)}）` : "筛选结果移到备选";
+}
+function applyFilter() {
+  if (!filterActive()) return;
+  const ids = [];
+  for (let i = 0; i < N; i++) if (loc[i] === 0 && pass(i)) ids.push(i);
+  if (ids.length) move(ids, 1, `${fmt(ids.length)} 条移到备选`);
+}
+function setSearch(q) {
+  q = q.trim();
+  $("#search").style.borderColor = "";
+  if (!q) filter.search = null;
+  else if (q.length > 2 && q.startsWith("/") && q.endsWith("/")) {
+    try { const re = new RegExp(q.slice(1, -1)); filter.search = i => re.test(rows[i].w) || re.test(rows[i].py); }
+    catch { $("#search").style.borderColor = "var(--danger)"; return; }
+  } else {
+    const ql = q.toLowerCase().replace(/\s+/g, " ");
+    // 带空格时按完整音节匹配（「ha ha」不会匹配 cha hao），不带空格时连写模糊匹配
+    const pyMatch = ql.includes(" ")
+      ? i => (" " + rows[i].py + " ").includes(" " + ql + " ")
+      : i => rows[i].py.replace(/ /g, "").includes(ql);
+    filter.search = i => rows[i].w.toLowerCase().includes(ql) || pyMatch(i);
+  }
+  refreshAll();
+}
+
+// ---------- 排序 ----------
+const sortKeys = {};
+function sortKey(key) {
+  if (sortKeys[key]) return sortKeys[key];
+  const ids = Array.from({ length: N }, (_, i) => i);
+  const by = {
+    word: (() => { const c = new Intl.Collator("zh-Hans-CN-u-co-pinyin"); return (a, b) => c.compare(rows[a].w, rows[b].w); })(),
+    py: (a, b) => (rows[a].py < rows[b].py ? -1 : rows[a].py > rows[b].py ? 1 : 0),
+    rank: (a, b) => rows[a].rank - rows[b].rank,
+    len: (a, b) => rows[a].len - rows[b].len,
+    time: (a, b) => rows[a].time - rows[b].time,
+    tags: (a, b) => rows[b].tags - rows[a].tags,
+  }[key];
+  ids.sort((a, b) => by(a, b) || a - b);
+  const r = new Int32Array(N);
+  ids.forEach((id, k) => (r[id] = k));
+  return (sortKeys[key] = r);
+}
+
+// ---------- 栏 ----------
+class Pane {
+  constructor(el, idx) {
+    this.el = el; this.idx = idx;
+    this.body = $(".body", el); this.spacer = $(".spacer-y", el); this.hint = $(".empty-hint", el);
+    this.badge = $("[data-badge]", el);
+    this.view = []; this.sel = new Set(); this.anchor = -1; this.cursor = -1;
+    this.sort = { key: idx === 0 ? null : "tags", dir: 1 };
+    this.buildCols();
+    this.body.addEventListener("scroll", () => this.render());
+    this.body.addEventListener("mousedown", e => this.onMouseDown(e));
+    this.body.addEventListener("click", e => this.onClick(e));
+    this.body.addEventListener("dblclick", e => this.onDblClick(e));
+    el.addEventListener("keydown", e => this.onKey(e));
+    new ResizeObserver(() => this.render()).observe(this.body);
+    el.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => this.moveSelection(+b.dataset.act)));
+    $("[data-selall]", el).addEventListener("click", () => this.selectAll());
+  }
+  buildCols() {
+    const cols = $(".cols", this.el);
+    cols.innerHTML = COLS.map(c => `<div data-key="${c.key || ""}" class="${c.num ? "num" : ""} ${c.key ? "" : "nosort"}" ${c.tip ? `title="${c.tip}"` : ""}>${c.label}</div>`).join("");
+    cols.addEventListener("click", e => {
+      const k = e.target.closest("[data-key]")?.dataset.key; if (!k) return;
+      if (this.sort.key === k) { if (this.sort.dir === 1) this.sort.dir = -1; else this.sort = { key: null, dir: 1 }; }
+      else this.sort = { key: k, dir: (k === "rank" || k === "time") ? -1 : 1 };
+      this.refresh(); this.el.focus();
+    });
+  }
+  refresh() {
+    const v = [];
+    for (let i = 0; i < N; i++) if (loc[i] === this.idx && pass(i)) v.push(i);
+    if (this.sort.key) { const r = sortKey(this.sort.key), d = this.sort.dir; v.sort((a, b) => (r[a] - r[b]) * d); }
+    this.view = v;
+    for (const id of this.sel) if (loc[id] !== this.idx) this.sel.delete(id);
+    $(".cols", this.el).querySelectorAll("[data-key]").forEach(c => {
+      const col = COLS.find(x => (x.key || "") === c.dataset.key), on = col.key && col.key === this.sort.key;
+      c.classList.toggle("sorted", !!on);
+      c.textContent = col.label + (on ? (this.sort.dir === 1 ? " ↑" : " ↓") : "");
+    });
+    this.spacer.style.height = v.length * ROW_H + "px";
+    this.hint.style.display = v.length || !N ? "none" : "";
+    this.render(); this.updateHead();
+  }
+  total() { let t = 0; for (let i = 0; i < N; i++) if (loc[i] === this.idx) t++; return t; }
+  updateHead() {
+    const total = this.total(), shown = this.view.length;
+    this.badge.textContent = (shown !== total ? `${fmt(shown)} / ` : "") + fmt(total) + (this.sel.size ? ` · 已选 ${fmt(this.sel.size)}` : "");
+    this.el.querySelectorAll("[data-act]").forEach(b => (b.disabled = this.sel.size === 0));
+    $("[data-selall]", this.el).disabled = shown === 0;
+  }
+  render() {
+    const top = this.body.scrollTop, h = this.body.clientHeight;
+    const start = Math.max(0, Math.floor(top / ROW_H) - 5), end = Math.min(this.view.length, Math.ceil((top + h) / ROW_H) + 5);
+    const acts = ROW_ACTS[this.idx].map(([to, label, danger]) => `<button data-to="${to}"${danger ? ' class="danger"' : ""}>${label}</button>`).join("");
+    let html = "";
+    for (let k = start; k < end; k++) {
+      const id = this.view[k], r = rows[id];
+      const cls = "row" + (this.sel.has(id) ? " sel" : "") + (id === this.cursor ? " cur" : "");
+      html += `<div class="${cls}" data-id="${id}" style="top:${k * ROW_H}px">`
+        + `<div class="w" title="${esc(r.w)}">${wordHtml(r)}</div>`
+        + `<div class="py" title="${esc(r.py)}">${esc(r.py)}</div>`
+        + `<div class="num">${r.rank}</div><div class="num">${r.len}</div><div class="num">${r.time}</div>`
+        + `<div class="tags" title="${TAGS.filter(g => r.tags & g.bit).map(g => g.name).join("、")}">${tagsHtml(r.tags)}</div>`
+        + `<div class="acts">${acts}</div></div>`;
+    }
+    this.body.querySelectorAll(".row").forEach(n => n.remove());
+    this.body.insertAdjacentHTML("beforeend", html);
+  }
+  posOf(id) { return this.view.indexOf(id); }
+  setCursor(id, scroll = true) {
+    this.cursor = id;
+    if (scroll && id >= 0) {
+      const y = this.posOf(id) * ROW_H, b = this.body;
+      if (y < b.scrollTop) b.scrollTop = y;
+      else if (y + ROW_H > b.scrollTop + b.clientHeight) b.scrollTop = y + ROW_H - b.clientHeight;
+    }
+  }
+  selectRange(fromId, toId, add) {
+    const a = this.posOf(fromId), b = this.posOf(toId);
+    if (!add) this.sel.clear();
+    if (a < 0) { this.sel.add(toId); return; }
+    for (let k = Math.min(a, b); k <= Math.max(a, b); k++) this.sel.add(this.view[k]);
+  }
+  selectAll() { this.sel = new Set(this.view); this.el.focus(); this.render(); this.updateHead(); }
+  onMouseDown(e) {
+    if (e.target.closest("button")) return;
+    const row = e.target.closest(".row"); if (!row) return;
+    const id = +row.dataset.id, meta = e.metaKey || e.ctrlKey;
+    if (e.shiftKey) this.selectRange(this.anchor >= 0 ? this.anchor : id, id, meta);
+    else if (meta) { this.sel.has(id) ? this.sel.delete(id) : this.sel.add(id); this.anchor = id; }
+    else if (!(e.detail === 2 && this.sel.has(id))) { this.sel = new Set([id]); this.anchor = id; }
+    this.setCursor(id, false);
+    this.el.focus({ preventScroll: true });
+    this.render(); this.updateHead();
+  }
+  // 行内按钮：点在已选中的行上时作用于整个选区，否则只作用于这一行
+  onClick(e) {
+    const btn = e.target.closest("button[data-to]"); if (!btn) return;
+    const id = +btn.closest(".row").dataset.id, to = +btn.dataset.to;
+    if (this.sel.has(id) && this.sel.size > 1) this.moveSelection(to);
+    else { this.sel = new Set([id]); this.moveSelection(to); }
+  }
+  onDblClick(e) {
+    if (e.target.closest("button")) return;
+    const row = e.target.closest(".row"); if (!row) return;
+    this.sel = new Set([+row.dataset.id]);
+    this.moveSelection(this.idx === 0 ? 1 : this.idx === 1 ? 2 : 1);
+  }
+  onKey(e) {
+    const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key.toLowerCase() === "a") { e.preventDefault(); this.selectAll(); return; }
+    if (meta) return;
+    const v = this.view; if (!v.length) return;
+    let k = this.posOf(this.cursor);
+    const page = Math.max(1, Math.floor(this.body.clientHeight / ROW_H) - 1);
+    const nav = { ArrowDown: 1, ArrowUp: -1, PageDown: page, PageUp: -page, Home: -1e9, End: 1e9 }[e.key];
+    if (nav !== undefined) {
+      e.preventDefault();
+      k = k < 0 ? 0 : Math.max(0, Math.min(v.length - 1, k + nav));
+      const id = v[k];
+      if (e.shiftKey) this.selectRange(this.anchor >= 0 ? this.anchor : id, id, false);
+      else { this.sel = new Set([id]); this.anchor = id; }
+      this.setCursor(id); this.render(); this.updateHead();
+      return;
+    }
+    const key = e.key.toLowerCase();
+    if (e.key === "Delete" || e.key === "Backspace" || key === "d") {
+      e.preventDefault();
+      if (e.shiftKey) this.moveSelection(2);
+      else if (this.idx < 2) this.moveSelection(this.idx + 1);
+      else if (e.key === "Backspace") this.moveSelection(1);
+    } else if (key === "r" || key === "k") { e.preventDefault(); if (this.idx > 0) this.moveSelection(0); }
+    else if (key === "b") { e.preventDefault(); if (this.idx !== 1) this.moveSelection(1); }
+    else if (e.key === "Escape") { this.sel.clear(); this.render(); this.updateHead(); }
+  }
+  // 移动选区，之后光标停在原来位置附近，方便连续操作
+  moveSelection(to) {
+    if (to === this.idx) return;
+    const ids = this.view.filter(id => this.sel.has(id));
+    if (!ids.length) return;
+    const firstPos = this.posOf(ids[0]);
+    const rest = this.view.filter(id => !this.sel.has(id));
+    const next = rest[Math.min(firstPos, rest.length - 1)];
+    this.sel = new Set(next !== undefined ? [next] : []);
+    this.anchor = this.cursor = next !== undefined ? next : -1;
+    move(ids, to, `${fmt(ids.length)} 条${["已保留", "移到备选", "确认移除"][to]}`);
+    this.el.focus({ preventScroll: true });
+  }
+}
+
+function wordHtml(r) {
+  if (!r.bad.length) return esc(r.w);
+  const set = new Set(r.bad);
+  return Array.from(r.w).map((c, i) => (set.has(i) ? `<mark>${esc(c)}</mark>` : esc(c))).join("");
+}
+function tagsHtml(t) {
+  let s = "";
+  if (t) for (const g of TAGS) if (t & g.bit) s += `<span class="tag" style="color:var(${g.color})">${g.name}</span>`;
+  return s;
+}
+
+// ---------- 移动、撤销、保存 ----------
+function move(ids, to, msg) {
+  const prev = new Uint8Array(ids.length);
+  ids.forEach((id, k) => { prev[k] = loc[id]; loc[id] = to; });
+  undoStack.push({ ids, prev });
+  if (undoStack.length > 200) undoStack.shift();
+  afterChange();
+  if (msg) toast(msg, true);
+}
+function undo() {
+  const u = undoStack.pop(); if (!u) return;
+  u.ids.forEach((id, k) => (loc[id] = u.prev[k]));
+  afterChange();
+  toast(`已撤销（${fmt(u.ids.length)} 条）`, false);
+}
+function refreshAll() { panes.forEach(p => p.refresh()); updateFilterCounts(); updateSummary(); }
+function afterChange() { refreshAll(); $("#undoBtn").disabled = !undoStack.length; scheduleSave(); }
+function updateSummary() {
+  if (!N) { $("#summary").textContent = ""; return; }
+  const c = [0, 0, 0]; for (let i = 0; i < N; i++) c[loc[i]]++;
+  $("#summary").textContent = `导出后将保留 ${fmt(c[0] + c[1])} 条，移除 ${fmt(c[2])} 条`;
+}
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const c = [], r = [];
+    for (let i = 0; i < N; i++) { if (loc[i] === 1) c.push(i); else if (loc[i] === 2) r.push(i); }
+    $("#saveState").textContent = store.set(file.fp, { c, r }) ? "进度已保存" : "进度无法保存（浏览器存储不可用）";
+  }, 500);
+}
+
+let toastTimer = null;
+function toast(msg, canUndo) {
+  $("#toastText").textContent = msg;
+  $("#toastUndo").style.display = canUndo ? "" : "none";
+  $("#toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 3500);
+}
+
+// ---------- 对话框与导出 ----------
+function showModal(html) { $("#modalBody").innerHTML = html; $("#modal").classList.add("show"); }
+function hideModal() { $("#modal").classList.remove("show"); }
+function alertModal(title, msg) {
+  showModal(`<h3>${esc(title)}</h3><p>${esc(msg)}</p><div class="actions"><button class="btn primary" data-close>好</button></div>`);
+}
+function download(name, data, type) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+function exportDialog() {
+  const c = [0, 0, 0]; for (let i = 0; i < N; i++) c[loc[i]]++;
+  const base = file.name.replace(/\.bin$/i, "") + "_干净";
+  showModal(`<h3>导出干净词库</h3>
+    <div class="stats"><span>保留</span><b>${fmt(c[0] + c[1])} 条</b><span>移除（确认移除栏）</span><b>${fmt(c[2])} 条</b></div>
+    ${c[1] ? `<p>备选栏里还有 <b>${fmt(c[1])}</b> 条未处理，导出时会<b>保留</b>。</p>` : ""}
+    <p><b>.bin</b> 用于在搜狗输入法「偏好设置 › 词库 › 中文用户词库」里「恢复（完全覆盖）」；<b>.txt</b> 是文本版，方便查看。原始备份请留好。</p>
+    <p>在 macOS 上如果搜狗提示恢复失败，多半是它没有权限读取「下载」文件夹：可以在「系统设置 › 隐私与安全性 › 文件和文件夹」里允许搜狗输入法访问，或把文件移到主目录下的其他文件夹再恢复。</p>
+    <div class="actions"><button class="btn" data-close>关闭</button>
+      <button class="btn" id="dlTxt">下载 .txt</button><button class="btn primary" id="dlBin" ${c[2] ? "" : "disabled"}>下载 .bin</button></div>`);
+  const keep = () => { const k = []; for (let i = 0; i < N; i++) if (loc[i] !== 2) k.push(i); return k; };
+  $("#dlBin").onclick = () => {
+    try { download(base + ".bin", S.rebuild(file.bytes, keep(), file.recs), "application/octet-stream"); }
+    catch (e) { alertModal("导出失败", e.message); }
+  };
+  $("#dlTxt").onclick = () => download(base + ".txt", S.toTSV(file.recs, keep()), "text/plain;charset=utf-8");
+}
+
+// ---------- 启动 ----------
+function init() {
+  buildChips();
+  const saved = store.get("sdc-filter");
+  if (saved) {
+    (saved.tags || []).forEach((v, k) => { if (k < TAGS.length) filter.tags[k] = v; });
+    if (saved.mode === "all") filter.mode = "all";
+    for (const k of ["freqMin", "freqMax", "lenMin", "lenMax"]) {
+      filter[k] = Number.isFinite(saved[k]) ? saved[k] : null;
+      $("#" + k).value = filter[k] ?? "";
+    }
+  }
+  panes = [...document.querySelectorAll(".pane")].map((el, k) => new Pane(el, k));
+  filterChanged(); refreshAll();
+
+  const pick = () => $("#fileInput").click();
+  $("#openBtn").onclick = pick; $("#openBtn2").onclick = pick;
+  $("#fileInput").onchange = e => { openFile(e.target.files[0]); e.target.value = ""; };
+  let dragDepth = 0;
+  window.addEventListener("dragenter", e => { if (e.dataTransfer?.types.includes("Files")) { e.preventDefault(); dragDepth++; document.body.classList.add("dragging"); } });
+  window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragging"); } });
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => {
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging");
+    openFile(e.dataTransfer.files[0]);
+  });
+
+  $("#modeSeg").addEventListener("click", e => { const m = e.target.dataset.mode; if (m) { filter.mode = m; filterChanged(); } });
+  for (const k of ["freqMin", "freqMax", "lenMin", "lenMax"])
+    $("#" + k).addEventListener("input", e => { const v = parseInt(e.target.value, 10); filter[k] = Number.isFinite(v) ? v : null; filterChanged(); });
+  $("#clearFilter").onclick = () => {
+    filter.tags.fill(0); filter.mode = "any";
+    for (const k of ["freqMin", "freqMax", "lenMin", "lenMax"]) { filter[k] = null; $("#" + k).value = ""; }
+    $("#search").value = ""; filter.search = null;
+    filterChanged();
+  };
+  $("#applyFilter").onclick = applyFilter;
+  let searchTimer = null;
+  $("#search").addEventListener("input", e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setSearch(e.target.value), 180); });
+  $("#undoBtn").onclick = undo;
+  $("#toastUndo").onclick = undo;
+  $("#exportBtn").onclick = exportDialog;
+  $("#modal").addEventListener("click", e => { if (e.target.id === "modal" || e.target.dataset.close !== undefined) hideModal(); });
+  document.addEventListener("keydown", e => {
+    const inInput = document.activeElement.tagName === "INPUT";
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !inInput) { e.preventDefault(); undo(); }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f" && N) { e.preventDefault(); $("#search").focus(); $("#search").select(); }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") { e.preventDefault(); pick(); }
+    if (e.key === "Escape" && $("#modal").classList.contains("show")) hideModal();
+  });
+  loadDicts();   // 提前在后台加载词典
+}
+init();
+window.SogouCleaner = { loadBuffer };   // 便于自动化测试
+</script>
+</body>
+</html>
