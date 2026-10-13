@@ -193,6 +193,8 @@ node tools/check_web.js tests/sample.bin --all-tags
 
 修改 `tools/make_sample.py` 后需要重新生成示例词库：`python3 tools/make_sample.py`。
 
+界面有改动时，可以用 `node tools/screenshot.js` 重新生成 README 里的截图（需要本机装有 Chrome）。它会在无头浏览器里载入示例词库，按 2 倍像素密度截图，保存到 `docs/screenshot.png`。
+
 ## 致谢与许可
 
 - 词条解析逻辑和拼音码表参考了[深蓝词库转换（imewlconverter）](https://github.com/studyzy/imewlconverter)中的 `SougouBinParser`，该部分又源自 [nopdan/rose](https://github.com/nopdan/rose)。因此本项目以 [GPL-3.0](LICENSE) 发布。

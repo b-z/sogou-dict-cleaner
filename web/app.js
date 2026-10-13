@@ -751,15 +751,17 @@ init();
 // 示例词库：合成数据（tools/make_sample.py 生成），以脚本形式加载，不需要网络请求权限
 function loadSample() {
   busy("正在载入示例词库…");
-  const s = document.createElement("script");
-  s.src = "sample.js";
-  s.onload = () => {
-    const bin = atob(globalThis.SOGOU_SAMPLE), bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    loadBuffer("示例词库.bin", bytes.buffer).catch(e => { busy(); alertModal("无法载入示例词库", e.message); });
-  };
-  s.onerror = () => { busy(); alertModal("无法载入示例词库", "sample.js 加载失败"); };
-  document.head.appendChild(s);
+  return new Promise(resolve => {
+    const s = document.createElement("script");
+    s.src = "sample.js";
+    s.onload = () => {
+      const bin = atob(globalThis.SOGOU_SAMPLE), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      loadBuffer("示例词库.bin", bytes.buffer).catch(e => { busy(); alertModal("无法载入示例词库", e.message); }).then(resolve);
+    };
+    s.onerror = () => { busy(); alertModal("无法载入示例词库", "sample.js 加载失败"); resolve(); };
+    document.head.appendChild(s);
+  });
 }
 
 window.SogouCleaner = { loadBuffer, loadSample, setBaseline };   // 便于自动化测试

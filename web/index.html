@@ -244,6 +244,10 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 .busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); background: color-mix(in srgb, var(--bg) 80%, transparent); z-index: 70; font-size: 14px; }
 .busy.show { display: flex; }
+/* 所有能点的元素统一用「点击」指针；禁用的按钮除外 */
+button:not(:disabled), a[href], label, select, summary, .chip, .row .tag, .ck,
+input[type=checkbox]:not(:disabled), input[type=radio]:not(:disabled), .cols > div:not(.nosort) { cursor: pointer; }
+button:disabled, input:disabled { cursor: default; }
 </style>
 </head>
 <body>
