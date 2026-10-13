@@ -193,7 +193,7 @@ node tools/check_web.js tests/sample.bin --all-tags
 
 修改 `tools/make_sample.py` 后需要重新生成示例词库：`python3 tools/make_sample.py`。
 
-界面有改动时，可以用 `node tools/screenshot.js` 重新生成 README 里的截图（需要本机装有 Chrome）。它会在无头浏览器里载入示例词库，按 2 倍像素密度截图，保存到 `docs/screenshot.png`。
+README 里的截图用示例词库拍摄（2 倍像素密度），不包含任何真实词库数据；界面有改动时请用示例词库重拍。
 
 ## 致谢与许可
 
