@@ -43,6 +43,7 @@
     DUP: 1 << 10,        // 重复词：同一个词出现多次，除词频最高的一条外都标记
     ZERO: 1 << 11,       // 词频为 0
     REDUP: 1 << 12,      // 叠词：同一片段重复（闭包闭包），或同一个字连续 4 次以上
+    NEW: 1 << 13,        // 新增：和旧备份相比新出现的词（由 diff 计算，analyze 不设置）
   };
 
   const NORMAL_CHAR = /^[㐀-䶿一-鿿\u{20000}-\u{3134f}\x21-\x7e〇]$/u;
@@ -294,7 +295,50 @@
     });
   }
 
-  const api = { PINYIN, TAG, HEADER_SIZE, parse, layout, check, headerChecksum, rebuild, toTSV, analyze, gb2312Level };
+  // ---------- 对比两个备份 ----------
+  /** 词条的身份：词 + 拼音码。文字无法解码的记录用词的原始字节代替 */
+  function recordKey(r) {
+    if (r.word !== null) return r.word + "\u0001" + r.codes.join(",");
+    const n = 2 * r.codes.length, wlen = r.raw[13 + n] | (r.raw[14 + n] << 8);
+    return "\u0002" + Array.from(r.raw.subarray(15 + n, 15 + n + wlen), b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  /**
+   * 对比旧备份与新备份。同一个身份的词一一配对：先配词频相同的，剩下的按出现顺序配；
+   * 新备份里多出来的算新增。同一个词有多条、其中一条被删或新增时，这样不会误判成词频变化。
+   * 返回 {isNew: Uint8Array(新), delta: Int32Array(新，词频变化), gone: [旧备份中消失的词条下标]}
+   */
+  function diff(oldRecs, newRecs) {
+    const pool = new Map();
+    oldRecs.forEach((r, j) => {
+      const k = recordKey(r);
+      const a = pool.get(k);
+      if (a) a.push(j); else pool.set(k, [j]);
+    });
+    const isNew = new Uint8Array(newRecs.length), delta = new Int32Array(newRecs.length);
+    const matched = new Uint8Array(oldRecs.length), paired = new Uint8Array(newRecs.length);
+    const keys = newRecs.map(recordKey);
+    const take = (i, a, k) => { const j = a.splice(k, 1)[0]; matched[j] = 1; paired[i] = 1; delta[i] = newRecs[i].rank - oldRecs[j].rank; };
+    newRecs.forEach((r, i) => {          // 第一轮：词频相同的直接配对
+      const a = pool.get(keys[i]);
+      if (!a || !a.length) return;
+      const k = a.findIndex(j => oldRecs[j].rank === r.rank);
+      if (k >= 0) take(i, a, k);
+    });
+    newRecs.forEach((r, i) => {          // 第二轮：剩下的按出现顺序配对
+      if (paired[i]) return;
+      const a = pool.get(keys[i]);
+      if (a && a.length) take(i, a, 0); else isNew[i] = 1;
+    });
+    const gone = [];
+    matched.forEach((m, j) => { if (!m) gone.push(j); });
+    return { isNew, delta, gone };
+  }
+
+  /** 文件头 0x28：词库里最大的时序值，越大说明备份越新 */
+  function maxTime(u8) { layout(u8); return view(u8).getUint32(0x28, true); }
+
+  const api = { PINYIN, TAG, HEADER_SIZE, parse, layout, check, headerChecksum, rebuild, toTSV, analyze, gb2312Level, diff, maxTime };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.SogouDict = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

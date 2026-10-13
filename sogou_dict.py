@@ -202,9 +202,10 @@ def rebuild_indices(orig, keep, added=(), recs=None):
 
 
 def read_tsv(path):
-    with open(path, encoding="utf-8") as f:
-        for ln, line in enumerate(f, 1):
-            line = line.rstrip("\n")
+    # 只按 \n 断行：乱码词里可能含有 \r 等字符，逐行读取会把它们当成换行
+    with open(path, encoding="utf-8", newline="") as f:
+        for ln, line in enumerate(f.read().split("\n"), 1):
+            line = line.rstrip("\r")
             if not line.strip():
                 continue
             parts = line.split("\t")

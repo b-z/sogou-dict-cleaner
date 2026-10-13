@@ -28,13 +28,23 @@ expect("删除乱码后的 .bin 逐字节一致", Buffer.compare(Buffer.from(S.r
 expect("全部保留时与原文件逐字节一致", Buffer.compare(Buffer.from(S.rebuild(u8, recs.map((_, i) => i), recs)), Buffer.from(u8)) === 0);
 expect("原文件通过文件头检查", S.check(u8).length === 0);
 
+// 对比：和自己比没有差异；拿删掉乱码的版本当旧备份，新增的正好是那些乱码
+const self = S.diff(recs, recs);
+expect("和自身对比没有新增和消失", self.isNew.every(x => !x) && self.gone.length === 0 && self.delta.every(x => x === 0));
+const cleanedRecs = S.parse(S.rebuild(u8, keep, recs));
+const d = S.diff(cleanedRecs, recs);
+expect("对比删除乱码前后：新增的正好是乱码词条", d.gone.length === 0
+  && recs.every((_, i) => !!d.isNew[i] === !!(info[i].tags & S.TAG.GARBLED)));
+const d2 = S.diff(recs, cleanedRecs);
+expect("反过来对比：消失的正好是乱码词条", d2.gone.length === recs.length - keep.length && d2.isNew.every(x => !x));
+
 if (allTags) {
   require("../web/data.js");
   const full = S.analyze(recs, {
     commonWords: new Set(globalThis.SOGOU_COMMON_WORDS.split("\n")),
     tradChars: new Set(Array.from(globalThis.SOGOU_TRAD_CHARS)),
   });
-  for (const [name, bit] of Object.entries(S.TAG))
+  for (const [name, bit] of Object.entries(S.TAG)) if (name !== "NEW")   // NEW 由 diff 设置，上面已单独测试
     expect(`标签 ${name} 至少命中一条`, full.some(x => x.tags & bit));
   expect("能解析出实际输入的拼音", recs.some(r => r.typed));
 }

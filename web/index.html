@@ -18,7 +18,7 @@
   --danger: #c62828; --danger-soft: #fdecea; --mark: #ffe08a; --mark-text: #6b3f00;
   --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
   --t-red: #c62828; --t-orange: #c25400; --t-purple: #7b3fb5; --t-violet: #8e6cc4; --t-amber: #9a6a00;
-  --t-blue: #1f5fbf; --t-teal: #0f7a72; --t-gray: #6e6e73; --t-green: #2e7d32; --t-brown: #8d5524;
+  --t-blue: #1f5fbf; --t-teal: #0f7a72; --t-gray: #6e6e73; --t-green: #2e7d32; --t-brown: #8d5524; --t-pink: #b4236e;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,7 +28,7 @@
     --danger: #ff6b6b; --danger-soft: #3a1f1f; --mark: #7a5a00; --mark-text: #ffe7a3;
     --shadow: 0 1px 2px rgba(0,0,0,.4);
     --t-red: #ff7b72; --t-orange: #ffa657; --t-purple: #c39bf0; --t-violet: #b6a1e6; --t-amber: #e3b341;
-    --t-blue: #79b8ff; --t-teal: #56d4c4; --t-gray: #a1a1a8; --t-green: #7ee787; --t-brown: #d9a066;
+    --t-blue: #79b8ff; --t-teal: #56d4c4; --t-gray: #a1a1a8; --t-green: #7ee787; --t-brown: #d9a066; --t-pink: #f778ba;
   }
 }
 * { box-sizing: border-box; }
@@ -84,6 +84,31 @@ header .spacer { flex: 1; }
 .seg button + button { border-left: 1px solid var(--line-strong); }
 .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .range { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+
+/* 对比旧备份 */
+.diffinfo { display: inline-flex; align-items: stretch; border: 1px solid var(--t-pink); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+header .file { min-width: 40px; }
+.diffinfo[hidden] { display: none; }
+.diffinfo button { border: 0; background: color-mix(in srgb, var(--t-pink) 10%, var(--panel)); color: var(--t-pink); cursor: pointer; padding: 3px 9px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.diffinfo button:hover { background: color-mix(in srgb, var(--t-pink) 20%, var(--panel)); }
+.diffinfo #diffClear { border-left: 1px solid var(--t-pink); padding: 3px 7px; }
+.row .num .new { color: var(--t-pink); font-weight: 700; }
+.row .num .up { color: var(--t-green); }
+.row .num .down { color: var(--muted); }
+.chip.diff-only { border-style: dashed; }
+.chip[hidden] { display: none; }
+.report-tabs { display: flex; gap: 6px; margin: 12px 0 6px; }
+.report-tabs button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.report-list { max-height: 42vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.report-list table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.report-list td { padding: 3px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.report-list td:nth-child(1) { width: 34%; } .report-list td:nth-child(2) { width: 38%; } .report-list td:nth-child(3) { width: 28%; }
+.report-list td.py { color: var(--muted); font: 12px ui-monospace, Menlo, monospace; }
+.report-list td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.report-list .more { padding: 6px 10px; color: var(--faint); font-size: 12px; }
+.modal.wide { width: min(680px, 94vw); }
+.modal .warnbox { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: 12.5px; }
 
 /* 当前筛选条件 */
 .exprbar { display: flex; align-items: baseline; gap: 8px; padding: 0 14px 10px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
@@ -226,8 +251,10 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
 <div id="hostWarn"></div>
 <header>
   <h1>搜狗词库清理</h1>
-  <button class="btn" id="openBtn">打开文件…</button>
+  <button class="btn" id="openBtn" title="可以同时选中新旧两个备份，自动对比">打开文件…</button>
   <span class="file" id="fileName"></span>
+  <button class="btn" id="diffBtn" disabled title="选一个更早的备份，找出这段时间新增的词">对比旧备份…</button>
+  <span class="diffinfo" id="diffInfo" hidden><button id="diffReport" title="查看差异报告"></button><button id="diffClear" title="取消对比">✕</button></span>
   <span class="spacer"></span>
   <span class="links">
     <a href="https://github.com/b-z/sogou-dict-cleaner" target="_blank" rel="noopener" title="源代码">
@@ -239,7 +266,8 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
   <span id="saveState"></span>
   <button class="btn" id="undoBtn" title="撤销 (⌘Z)" disabled>撤销</button>
   <button class="btn primary" id="exportBtn" disabled>导出干净词库</button>
-  <input type="file" id="fileInput" accept=".bin" hidden>
+  <input type="file" id="fileInput" accept=".bin" multiple hidden>
+  <input type="file" id="diffInput" accept=".bin" hidden>
 </header>
 
 <div class="filterbar" id="filterbar">
@@ -297,6 +325,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line-st
         <li>把它拖到这里，或点下面的按钮打开。</li>
         <li>挑完后点「导出干净词库」，再在搜狗里用「恢复（完全覆盖）」选择导出的文件。</li>
       </ol>
+      <p>定期维护时，可以<b>同时选中新旧两个备份</b>：工具会找出这段时间新增的词，只检查它们就够了。</p>
       <div class="warn">⚠ 词库里有你打过的人名、地址、账号、聊天内容等大量个人信息。请确认地址栏是 <b>sogou-clean.pages.dev</b>，不要在来历不明或仿冒的网站上打开词库文件。</div>
       <button class="btn primary" id="openBtn2">打开备份文件…</button>
       <p><button class="btn small" id="sampleBtn">没有备份文件？先用示例词库试试</button></p>
